@@ -6,6 +6,8 @@ import React, { useState } from 'react';
 import { Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { BackgroundDecorations, ThemedText } from '../src/components';
 import { SpotifyAuthService } from '../src/services/spotifyAuth';
+import { AuthService } from '../src/services/authService';
+import { auth } from '../src/config/firebase';
 
 export default function LoginScreen() {
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
@@ -39,10 +41,31 @@ export default function LoginScreen() {
       await AsyncStorage.setItem('isFirstTimeUser', 'true');
       await AsyncStorage.setItem('onboardingCompleted', 'false');
       
+      // Store Spotify email in Firebase if user is logged in
+      if (auth.currentUser) {
+        try {
+          console.log('Storing Spotify email in Firebase...');
+          await AuthService.updateSpotifyConnection(auth.currentUser.uid, {
+            email: userProfile.email,
+            displayName: userProfile.display_name,
+            id: userProfile.id
+          });
+          console.log('Spotify email stored successfully');
+        } catch (error) {
+          console.log('Error storing Spotify email:', error);
+          // Don't fail the login if Firebase update fails
+        }
+      }
+      
       console.log('Spotify login successful for:', userProfile.display_name);
       
       // Navigate to onboarding for first-time Spotify users
-      router.replace('/onboarding');
+      console.log('Navigating to onboarding...');
+      
+      // Add a small delay to ensure all AsyncStorage operations are complete
+      setTimeout(() => {
+        router.replace('/onboarding');
+      }, 100);
     } catch (error) {
       console.error('Spotify login failed:', error);
       Alert.alert('Error', `Spotify login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -97,6 +120,21 @@ export default function LoginScreen() {
               </ThemedText>
             </LinearGradient>
           </TouchableOpacity>
+
+          {/* <TouchableOpacity 
+            style={styles.emailButton} 
+            onPress={() => router.push('/email-login')}
+          >
+            <LinearGradient
+              colors={['#00CAFE', '#0099CC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.emailButtonGradient}
+            >
+              <Ionicons name="mail" size={24} color="#FFFFFF" />
+              <ThemedText style={styles.emailButtonText}>Continue with Email</ThemedText>
+            </LinearGradient>
+          </TouchableOpacity> */}
         </View>
       </View>
     </View>
@@ -178,5 +216,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 10,
+  },
+  emailButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#00CAFE',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
+    width: '100%',
+  },
+  emailButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
+  },
+  emailButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginLeft: 12,
   },
 });

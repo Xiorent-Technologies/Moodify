@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users can read and write their own subscriptions
+    match /subscriptions/{subscriptionId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.resource.data.userId == request.auth.uid);
+    }
+    
+    // Users can read and write their own referrals
+    match /referrals/{referralId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         request.resource.data.userId == request.auth.uid);
+    }
+    
+    // Users can read referral documents by referral code (for validation)
+    match /referrals/{referralCode} {
+      allow read: if request.auth != null;
+    }
+  }
+}

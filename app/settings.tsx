@@ -12,6 +12,7 @@ import {
     View
 } from 'react-native';
 import { SpotifyAuthService } from '../src/services/spotifyAuth';
+import { AuthService } from '../src/services/authService';
 
 export default function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -20,7 +21,7 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
-      'Are you sure you want to logout?',
+      'Are you sure you want to logout? This will clear all your data and you\'ll need to sign in again.',
       [
         {
           text: 'Cancel',
@@ -31,30 +32,27 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear all stored data
-              await AsyncStorage.multiRemove([
-                'isLoggedIn',
-                'userEmail',
-                'firstName',
-                'lastName',
-                'spotifyAccessToken',
-                'spotifyRefreshToken',
-                'spotifyTokenExpiry',
-                'spotifyUserId',
-                'spotifyUserEmail',
-                'spotifyDisplayName',
-                'spotifyProfileImage',
-                'isFirstTimeUser'
-              ]);
+              console.log('🚀 Starting complete logout...');
               
-              // Logout from Spotify
+              // 1. Logout from Firebase Auth
+              await AuthService.signOut();
+              console.log('✅ Firebase logout successful');
+              
+              // 2. Logout from Spotify
               await SpotifyAuthService.logout();
+              console.log('✅ Spotify logout successful');
               
-              // Navigate to login screen
-              router.replace('/login');
+              // 3. Clear ALL AsyncStorage data
+              await AsyncStorage.clear();
+              console.log('✅ All local data cleared');
+              
+              // 4. Navigate to email login screen
+              router.replace('/email-login');
+              console.log('✅ Redirected to login screen');
+              
             } catch (error) {
-              console.error('Error during logout:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
+              console.error('❌ Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout completely. Please try again.');
             }
           },
         },
@@ -93,8 +91,8 @@ export default function SettingsScreen() {
   };
 
   const handleInviteFriendPress = () => {
-    // Navigate to invite friend
-    console.log('Invite a friend pressed');
+    // Navigate to refer and earn screen
+    router.push('/refer-earn');
   };
 
   const renderSettingItem = (
@@ -185,7 +183,7 @@ export default function SettingsScreen() {
 
         {/* Social & Logout Section */}
         <View style={styles.section}>
-          {renderSettingItem('people-outline', 'Invite a friend', handleInviteFriendPress)}
+          {renderSettingItem('gift-outline', 'Refer & Earn', handleInviteFriendPress)}
           {renderSettingItem('log-out-outline', 'Logout', handleLogout, false)}
         </View>
       </ScrollView>
