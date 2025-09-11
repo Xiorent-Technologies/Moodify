@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -33,6 +34,8 @@ export default function SongsListScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPlayingSong, setCurrentPlayingSong] = useState<string | null>(null);
+  const [playlistTitle, setPlaylistTitle] = useState<string>('');
+  const [playlistDescription, setPlaylistDescription] = useState<string>('');
 
   const { type, name, description, image, query } = params;
 
@@ -45,7 +48,27 @@ export default function SongsListScreen() {
       setIsLoading(true);
       let songsData: Song[] = [];
 
-      if (type === 'mood') {
+      // Check if we have mood playlist data from AsyncStorage
+      const moodPlaylistData = await AsyncStorage.getItem('moodPlaylist');
+      if (moodPlaylistData) {
+        const playlist = JSON.parse(moodPlaylistData);
+        songsData = playlist.tracks.map((track: any) => ({
+          id: track.id,
+          name: track.name,
+          artist: track.artists?.[0]?.name || 'Unknown Artist',
+          album: track.album?.name || 'Unknown Album',
+          albumArt: track.album?.images?.[0]?.url || '',
+          duration: '0:00', // Duration not available in track data
+          uri: track.uri || `spotify:track:${track.id}`
+        }));
+        
+        // Set playlist title and description
+        setPlaylistTitle(playlist.title || `${playlist.mood} Mood Playlist`);
+        setPlaylistDescription(`${songsData.length} songs in your ${playlist.mood} mood collection`);
+        
+        // Clear the mood playlist data after loading
+        await AsyncStorage.removeItem('moodPlaylist');
+      } else if (type === 'mood') {
         // Load mood-based songs
         songsData = await loadMoodBasedSongs(name as string);
       } else if (type === 'category') {
@@ -395,8 +418,8 @@ export default function SongsListScreen() {
             onError={() => console.log('Failed to load header image')}
           />
           <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>{name}</Text>
-            <Text style={styles.headerSubtitle}>{description}</Text>
+            <Text style={styles.headerTitle}>{playlistTitle || name}</Text>
+            <Text style={styles.headerSubtitle}>{playlistDescription || description}</Text>
             <Text style={styles.songCount}>{songs.length} songs</Text>
           </View>
         </View>

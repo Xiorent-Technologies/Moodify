@@ -40,26 +40,33 @@ export default function ExploreScreen() {
     {
       id: '1',
       name: 'Happy',
-      image: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=400&fit=crop',
+      image: require('../../assets/images/mood_creation/happy.jpg'),
       description: 'Uplifting and joyful tunes'
     },
     {
       id: '2',
       name: 'Sassy',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
+      image: require('../../assets/images/mood_creation/sassy.jpg'),
       description: 'Confident and bold vibes'
     },
     {
       id: '3',
       name: 'Vibes',
-      image: 'https://images.unsplash.com/photo-1511379938547-c1f6c2b4b8b0?w=400&h=400&fit=crop',
+      image: require('../../assets/images/mood_creation/vibes.jpg'),
       description: 'Cool and energetic beats'
     },
     {
       id: '4',
+      name: 'Melancholy',
+      image: require('../../assets/images/mood_creation/melancholy.jpg'),
+      description: 'Deep and emotional tunes'
+    },
+    {
+      id: '5',
       name: 'Create Playlist',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      description: 'Build your own custom playlist'
+      image: require('../../assets/images/mood_creation/chooseYourMood.jpg'),
+      description: 'Build your own custom playlist',
+      isCreatePlaylist: true
     }
   ];
 
@@ -167,7 +174,7 @@ export default function ExploreScreen() {
   const handleMoodPlaylistPress = (mood: any) => {
     console.log('Mood playlist pressed:', mood.name);
     
-    if (mood.name === 'Create Playlist') {
+    if (mood.isCreatePlaylist) {
       // Navigate to mood creation screen
       router.push('/mood-creation');
     } else {
@@ -340,7 +347,7 @@ export default function ExploreScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Top Mood Playlist</Text>
             <View style={styles.moodGrid}>
-              {moodPlaylists.map((mood) => (
+              {moodPlaylists.slice(0, 4).map((mood) => (
                 <TouchableOpacity
                   key={mood.id}
                   style={styles.moodCard}
@@ -348,16 +355,32 @@ export default function ExploreScreen() {
                   activeOpacity={0.8}
                 >
                   <Image 
-                    source={{ uri: mood.image }} 
+                    source={mood.image} 
                     style={styles.moodImage}
                     resizeMode="cover"
-                    onError={() => console.log('Failed to load mood image:', mood.name)}
                   />
                   <View style={styles.moodOverlay}>
                     <Text style={styles.moodName}>{mood.name}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
+            </View>
+            {/* Create Playlist Card - Centered */}
+            <View style={styles.createPlaylistContainer}>
+              <TouchableOpacity
+                style={styles.createPlaylistCard}
+                onPress={() => handleMoodPlaylistPress(moodPlaylists[4])}
+                activeOpacity={0.8}
+              >
+                <Image 
+                  source={moodPlaylists[4].image} 
+                  style={styles.createPlaylistImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.createPlaylistOverlay}>
+                  <Text style={styles.createPlaylistName}>{moodPlaylists[4].name}</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -376,7 +399,11 @@ export default function ExploreScreen() {
                     source={{ uri: category.image }} 
                     style={styles.browseImage}
                     resizeMode="cover"
-                    onError={() => console.log('Failed to load browse image:', category.name)}
+                    onError={() => {
+                      console.log('Failed to load browse image:', category.name);
+                      console.log('Image URL:', category.image);
+                    }}
+                    onLoad={() => console.log('Successfully loaded browse image:', category.name)}
                   />
                   <View style={styles.browseOverlay}>
                     <Text style={styles.browseName}>{category.name}</Text>
@@ -479,7 +506,7 @@ const styles = StyleSheet.create({
   },
   moodCard: {
     width: (width - 64) / 2,
-    height: 180,
+    height: 200,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
@@ -494,10 +521,40 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   moodName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  createPlaylistContainer: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  createPlaylistCard: {
+    width: (width - 64) / 2,
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  createPlaylistImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  createPlaylistOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  createPlaylistName: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
@@ -510,7 +567,7 @@ const styles = StyleSheet.create({
   },
   browseCard: {
     width: (width - 64) / 2,
-    height: 160,
+    height: 180,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
@@ -525,8 +582,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   browseName: {
     color: '#FFFFFF',

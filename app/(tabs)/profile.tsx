@@ -2,9 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from '../../src/components/ThemedText';
 import { SpotifyApiService } from '../../src/services/spotifyApi';
+import { AuthService } from '../../src/services/authService';
+import { SpotifyAuthService } from '../../src/services/spotifyAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -59,6 +62,48 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Error loading user data:', error);
     }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout? This will clear all your data and you\'ll need to sign in again.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🚀 Starting complete logout from profile...');
+              
+              // 1. Logout from Firebase Auth
+              await AuthService.signOut();
+              console.log('✅ Firebase logout successful');
+              
+              // 2. Logout from Spotify
+              await SpotifyAuthService.logout();
+              console.log('✅ Spotify logout successful');
+              
+              // 3. Clear ALL AsyncStorage data
+              await AsyncStorage.clear();
+              console.log('✅ All local data cleared');
+              
+              // 4. Navigate to email login screen
+              router.replace('/email-login');
+              console.log('✅ Redirected to login screen');
+              
+            } catch (error) {
+              console.error('❌ Error during logout:', error);
+              Alert.alert('Error', 'Failed to logout completely. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderPlaylistCard = (playlist: Playlist) => (
@@ -130,14 +175,17 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.manageButton}>
               <ThemedText style={styles.manageButtonText}>Manage playlists</ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.iconButton}
               onPress={() => router.push('/settings')}
             >
               <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
             </TouchableOpacity>
           </View>
         </View>
@@ -297,6 +345,12 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 12,
     marginHorizontal: 8,
+  },
+  logoutButton: {
+    padding: 12,
+    marginHorizontal: 8,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    borderRadius: 12,
   },
   section: {
     marginBottom: 30,

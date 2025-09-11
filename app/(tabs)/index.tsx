@@ -2,6 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { auth } from '../../src/config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 import { Ionicons } from '@expo/vector-icons';
 import { SpotifyApiService } from '../../src/services/spotifyApi';
@@ -31,6 +34,8 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [spotifyConnected, setSpotifyConnected] = useState<boolean | null>(null);
 
   // Music Player State
   const [showPlayer, setShowPlayer] = useState(false);
@@ -47,7 +52,8 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
 
   useEffect(() => {
-    loadUserData();
+    // Check authentication status
+    checkAuthStatus();
     
     // Cleanup function for player service
     return () => {
@@ -58,6 +64,40 @@ export default function HomeScreen() {
       playerService.cleanup();
     };
   }, [unsubscribePlayer]);
+
+  const checkAuthStatus = async () => {
+    try {
+      // Check Firebase auth state
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          console.log('User authenticated in home screen');
+          setIsAuthenticated(true);
+          
+          // Check if Spotify is connected
+          const spotifyToken = await AsyncStorage.getItem('spotifyAccessToken');
+          if (spotifyToken) {
+            console.log('Spotify connected, loading data');
+            setSpotifyConnected(true);
+            await loadUserData();
+          } else {
+            console.log('Spotify not connected, redirecting to login');
+            setSpotifyConnected(false);
+            router.replace('/login');
+          }
+        } else {
+          console.log('User not authenticated, redirecting to email login');
+          setIsAuthenticated(false);
+          router.replace('/email-login');
+        }
+      });
+      
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsAuthenticated(false);
+      router.replace('/email-login');
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -190,6 +230,39 @@ export default function HomeScreen() {
     }
   };
 
+  const getUserTopMoods = () => {
+    try {
+      if (!topTracks || topTracks.length === 0) return [];
+      
+      // Count mood occurrences
+      const moodCounts: { [key: string]: { count: number; tracks: SpotifyTrack[]; color: readonly [string, string] } } = {};
+      
+      topTracks.forEach(track => {
+        const moodInfo = getMoodFromTrack(track);
+        if (!moodCounts[moodInfo.mood]) {
+          moodCounts[moodInfo.mood] = { count: 0, tracks: [], color: moodInfo.color };
+        }
+        moodCounts[moodInfo.mood].count++;
+        moodCounts[moodInfo.mood].tracks.push(track);
+      });
+      
+      // Sort by count and return top 3 moods
+      return Object.entries(moodCounts)
+        .sort(([,a], [,b]) => b.count - a.count)
+        .slice(0, 3)
+        .map(([mood, data]) => ({
+          mood,
+          count: data.count,
+          tracks: data.tracks,
+          color: data.color,
+          image: data.tracks[0]?.album?.images?.[0]?.url || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=140&h=180&fit=crop'
+        }));
+    } catch (error) {
+      console.log('Error in getUserTopMoods:', error);
+      return [];
+    }
+  };
+
   const getGenreFromTrack = (track: SpotifyTrack) => {
     try {
       // Simple genre detection based on track name
@@ -252,6 +325,31 @@ export default function HomeScreen() {
     if (unsubscribePlayer) {
       unsubscribePlayer();
       setUnsubscribePlayer(null);
+    }
+  };
+
+  const openMoodPlaylist = async (moodData: { mood: string; tracks: SpotifyTrack[]; color: readonly [string, string] }) => {
+    try {
+      if (!moodData || !moodData.tracks || moodData.tracks.length === 0) {
+        Alert.alert('No Songs', `No songs found for ${moodData.mood} mood`);
+        return;
+      }
+
+      console.log(`Opening ${moodData.mood} mood playlist with ${moodData.tracks.length} tracks`);
+      
+      // Store the mood playlist data in AsyncStorage
+      await AsyncStorage.setItem('moodPlaylist', JSON.stringify({
+        mood: moodData.mood,
+        tracks: moodData.tracks,
+        color: moodData.color,
+        title: `${moodData.mood.charAt(0).toUpperCase() + moodData.mood.slice(1)} Mood Playlist`
+      }));
+      
+      // Navigate to the songs list with mood playlist
+      router.push('/songs-list');
+    } catch (error) {
+      console.error('Error opening mood playlist:', error);
+      Alert.alert('Error', 'Failed to open mood playlist');
     }
   };
 
@@ -505,11 +603,32 @@ export default function HomeScreen() {
 
 
 
+  // Show loading while checking authentication
+  if (isAuthenticated === null || spotifyConnected === null) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00CAFE" />
+        <Text style={styles.loadingText}>Checking authentication...</Text>
+      </View>
+    );
+  }
+
+  // Show loading while loading user data
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00CAFE" />
         <Text style={styles.loadingText}>Loading your music...</Text>
+      </View>
+    );
+  }
+
+  // If not authenticated, don't show content
+  if (!isAuthenticated || !spotifyConnected) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00CAFE" />
+        <Text style={styles.loadingText}>Redirecting...</Text>
       </View>
     );
   }
@@ -545,16 +664,25 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/settings')}
+            >
               <Ionicons name="options" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/notifications')}
+            >
               <View style={styles.notificationContainer}>
                 <Ionicons name="notifications" size={24} color="#FFFFFF" />
                 <View style={styles.notificationDot} />
               </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleLogout}>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={() => router.push('/settings')}
+            >
               <Ionicons name="settings" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -570,7 +698,7 @@ export default function HomeScreen() {
               topTracks.slice(0, 6).map((track, index) => {
                 try {
                   if (!track || !track.id || !track.name) return null;
-                  const genreInfo = getGenreFromTrack(track);
+                  const albumImage = track.album?.images?.[0]?.url;
                   return (
                     <TouchableOpacity 
                       key={track.id} 
@@ -578,17 +706,24 @@ export default function HomeScreen() {
                       onPress={() => openMusicPlayer(track)}
                     >
                       <View style={styles.musicCardContent}>
-                        <View style={[styles.musicCardIcon, { backgroundColor: `${genreInfo.color}20` }]}>
-                          <Ionicons name={genreInfo.icon as any} size={24} color={genreInfo.color} />
-                        </View>
-                        <View style={styles.musicCardTextContainer}>
+                        <Image 
+                          source={albumImage ? { uri: albumImage } : require('../../assets/images/home/TL-Cards.png')} 
+                          style={styles.musicCardImage}
+                          resizeMode="cover"
+                        />
+                        <LinearGradient
+                          colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.musicCardTextContainer}
+                        >
                           <Text style={styles.musicCardText} numberOfLines={1}>
                             {track.name.length > 15 ? track.name.substring(0, 15) + '...' : track.name}
                           </Text>
                           <Text style={styles.musicCardArtist} numberOfLines={1}>
                             {track.artists?.[0]?.name || 'Unknown Artist'}
                           </Text>
-                        </View>
+                        </LinearGradient>
                       </View>
                     </TouchableOpacity>
                   );
@@ -602,68 +737,122 @@ export default function HomeScreen() {
               <>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-1', name: 'Coffee & Jazz', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-1', name: 'Coffee & Jazz', artists: [{ name: 'Chill Vibes' }], album: { name: 'Coffee & Jazz', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="musical-notes" size={24} color="#8B4513" />
-                    </View>
-                    <Text style={styles.musicCardText}>Coffee & Jazz</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>Coffee & Jazz</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-2', name: 'Top New Songs', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-2', name: 'RELEASED', artists: [{ name: 'New Releases' }], album: { name: 'RELEASED', images: [{ url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="star" size={24} color="#32CD32" />
-                    </View>
-                    <Text style={styles.musicCardText}>Top New Songs</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>RELEASED</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-3', name: 'Anything Goes', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-3', name: 'Anything Goes', artists: [{ name: 'Pop Mix' }], album: { name: 'Anything Goes', images: [{ url: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="mic" size={24} color="#FF6347" />
-                    </View>
-                    <Text style={styles.musicCardText}>Anything Goes</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>Anything Goes</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-4', name: 'Anime OSTs', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-4', name: 'Anime OSTs', artists: [{ name: 'Soundtrack' }], album: { name: 'Anime OSTs', images: [{ url: 'https://images.unsplash.com/photo-1511379938547-c1f6c2b4b8b0?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="moon" size={24} color="#FFD700" />
-                    </View>
-                    <Text style={styles.musicCardText}>Anime OSTs</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1511379938547-c1f6c2b4b8b0?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>Anime OSTs</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-5', name: 'Harry\'s House', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-5', name: 'Harry\'s House', artists: [{ name: 'Pop Artist' }], album: { name: 'Harry\'s House', images: [{ url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="person" size={24} color="#8A2BE2" />
-                    </View>
-                    <Text style={styles.musicCardText}>Harry's House</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>Harry's House</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.musicCard}
-                  onPress={() => openMusicPlayer({ id: 'static-6', name: 'Lo-Fi Beats', artists: [{ name: 'Static Artist' }], album: { name: 'Static Album', images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=150&h=150&fit=crop' }] } })}
+                  onPress={() => openMusicPlayer({ id: 'static-6', name: 'Lo-Fi Beats', artists: [{ name: 'Chill Music' }], album: { name: 'Lo-Fi Beats', images: [{ url: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=150&h=150&fit=crop' }] } })}
                 >
                   <View style={styles.musicCardContent}>
-                    <View style={styles.musicCardIcon}>
-                      <Ionicons name="eye" size={24} color="#FF1493" />
-                    </View>
-                    <Text style={styles.musicCardText}>Lo-Fi Beats</Text>
+                    <Image 
+                      source={{ uri: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=150&h=150&fit=crop' }} 
+                      style={styles.musicCardImage}
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['#1e3a8a', '#7c3aed', '#1e1b4b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.musicCardTextContainer}
+                    >
+                      <Text style={styles.musicCardText}>Lo-Fi Beats</Text>
+                    </LinearGradient>
                   </View>
                 </TouchableOpacity>
               </>
@@ -676,26 +865,33 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Your Top Moods</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodsContainer}>
             {topTracks.length > 0 ? (
-              topTracks.slice(0, 3).map((track, index) => {
+              getUserTopMoods().map((moodData, index) => {
                 try {
-                  if (!track || !track.id || !track.name) return null;
-                  const moodInfo = getMoodFromTrack(track);
+                  if (!moodData || !moodData.mood) return null;
                   return (
                     <TouchableOpacity 
-                      key={`mood-${track.id}`} 
+                      key={`mood-${moodData.mood}-${index}`} 
                       style={styles.moodCard}
-                      onPress={() => openMusicPlayer(track)}
+                      onPress={() => openMoodPlaylist(moodData)}
                     >
                       <Image
-                        source={{ 
-                          uri: track.album?.images?.[0]?.url || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=140&h=180&fit=crop'
-                        }}
+                        source={{ uri: moodData.image }}
                         style={styles.moodCardImage}
                         resizeMode="cover"
                       />
-                      <View style={styles.moodCardOverlay}>
-                        <Text style={styles.moodCardText}>{moodInfo.mood} Mood</Text>
-                      </View>
+                      <LinearGradient
+                        colors={moodData.color}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={styles.moodCardOverlay}
+                      >
+                        <Text style={styles.moodCardText}>
+                          {moodData.mood.charAt(0).toUpperCase() + moodData.mood.slice(1)} Mood
+                        </Text>
+                        <Text style={styles.moodCardCount}>
+                          {moodData.count} tracks
+                        </Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   );
                 } catch (error) {
@@ -715,9 +911,15 @@ export default function HomeScreen() {
                     style={styles.moodCardImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.moodCardOverlay}>
-                    <Text style={styles.moodCardText}>sad Mood</Text>
-                  </View>
+                  <LinearGradient
+                    colors={['#000000', '#333333']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.moodCardOverlay}
+                  >
+                    <Text style={styles.moodCardText}>Sad Mood</Text>
+                    <Text style={styles.moodCardCount}>0 tracks</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.moodCard}
@@ -728,9 +930,15 @@ export default function HomeScreen() {
                     style={styles.moodCardImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.moodCardOverlay}>
-                    <Text style={styles.moodCardText}>chilling Mood</Text>
-                  </View>
+                  <LinearGradient
+                    colors={['#00BFFF', '#1E90FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.moodCardOverlay}
+                  >
+                    <Text style={styles.moodCardText}>Chilling Mood</Text>
+                    <Text style={styles.moodCardCount}>0 tracks</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.moodCard}
@@ -741,9 +949,15 @@ export default function HomeScreen() {
                     style={styles.moodCardImage}
                     resizeMode="cover"
                   />
-                  <View style={styles.moodCardOverlay}>
+                  <LinearGradient
+                    colors={['#FF69B4', '#FF1493']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.moodCardOverlay}
+                  >
                     <Text style={styles.moodCardText}>Happy Mood</Text>
-                  </View>
+                    <Text style={styles.moodCardCount}>0 tracks</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </>
             )}
@@ -1041,40 +1255,41 @@ const styles = StyleSheet.create({
   },
   musicCard: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'transparent',
     borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
   },
   musicCardContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    height: 80,
   },
-  musicCardIcon: {
-    width: 48,
-    height: 48,
+  musicCardImage: {
+    width: 80,
+    height: 80,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
   },
   musicCardTextContainer: {
     flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
   },
   musicCardText: {
     fontSize: 14,
     color: '#FFFFFF',
-    fontWeight: '500',
-    flex: 1,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   musicCardArtist: {
     fontSize: 12,
     color: '#FFFFFF',
-    opacity: 0.7,
+    opacity: 0.8,
+    textAlign: 'center',
+    marginTop: 2,
   },
   musicCardSubtext: {
     fontSize: 10,
@@ -1114,6 +1329,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  moodCardCount: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '400',
+    textAlign: 'center',
+    opacity: 0.8,
+    marginTop: 2,
   },
   recentListeningContainer: {
     marginHorizontal: -20,

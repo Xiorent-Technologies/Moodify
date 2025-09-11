@@ -36,123 +36,11 @@ export default function LibraryScreen() {
     { id: 'artists', label: 'Artists' }
   ];
 
-  // Sample library data
-  const allItems: LibraryItem[] = [
-    {
-      id: '1',
-      title: 'Your Mood Playlist',
-      subtitle: '11 playlists',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 11
-    },
-    {
-      id: '2',
-      title: 'Top Tracks',
-      subtitle: '8 playlists',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 8
-    },
-    {
-      id: '3',
-      title: 'Your Liked Songs',
-      subtitle: '110 songs',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 110
-    },
-    {
-      id: '4',
-      title: 'random?',
-      subtitle: '10 playlists',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'folder',
-      count: 10
-    }
-  ];
-
-  const playlistsItems: LibraryItem[] = allItems.filter(item => item.type === 'playlist');
-  const moodItems: LibraryItem[] = [
-    {
-      id: '1',
-      title: 'Your Mood Playlist',
-      subtitle: '11 playlists',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 11
-    },
-    {
-      id: '9',
-      title: 'Happy Vibes',
-      subtitle: '5 playlists',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 5
-    },
-    {
-      id: '10',
-      title: 'Chill Mood',
-      subtitle: '3 playlists',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'playlist',
-      count: 3
-    }
-  ];
-  const albumsItems: LibraryItem[] = [
-    {
-      id: '5',
-      title: 'Midnights',
-      subtitle: 'Taylor Swift',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'album'
-    },
-    {
-      id: '6',
-      title: 'Sour',
-      subtitle: 'Olivia Rodrigo',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'album'
-    },
-    {
-      id: '11',
-      title: 'Folklore',
-      subtitle: 'Taylor Swift',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'album'
-    }
-  ];
-  const artistsItems: LibraryItem[] = [
-    {
-      id: '7',
-      title: 'Taylor Swift',
-      subtitle: 'Artist',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
-      type: 'artist'
-    },
-    {
-      id: '8',
-      title: 'Drake',
-      subtitle: 'Artist',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'artist'
-    },
-    {
-      id: '12',
-      title: 'Olivia Rodrigo',
-      subtitle: 'Artist',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-      type: 'artist'
-    }
-  ];
-
-  // Load user's Spotify data
   const loadUserData = async () => {
     try {
       setIsLoading(true);
       setHasError(false);
 
-      // Get user's playlists
       const playlists = await SpotifyApiService.getUserPlaylists();
       if (playlists?.items) {
         const formattedPlaylists = playlists.items.map((playlist: any) => ({
@@ -166,9 +54,6 @@ export default function LibraryScreen() {
         setUserPlaylists(formattedPlaylists);
       }
 
-
-
-      // Get user's top artists
       const topArtists = await SpotifyApiService.getTopArtists();
       if (topArtists?.items) {
         const formattedArtists = topArtists.items.map((artist: any) => ({
@@ -181,16 +66,14 @@ export default function LibraryScreen() {
         setUserArtists(formattedArtists);
       }
 
-      // Filter mood-related playlists
-      let moodPlaylists = userPlaylists.filter(playlist => 
-        playlist.title.toLowerCase().includes('mood') || 
+      let moodPlaylists = userPlaylists.filter(playlist =>
+        playlist.title.toLowerCase().includes('mood') ||
         playlist.title.toLowerCase().includes('happy') ||
         playlist.title.toLowerCase().includes('chill') ||
         playlist.title.toLowerCase().includes('sad') ||
         playlist.title.toLowerCase().includes('energetic')
       );
 
-      // Check for newly generated AI playlists
       try {
         const lastGeneratedPlaylist = await AsyncStorage.getItem('lastGeneratedPlaylist');
         if (lastGeneratedPlaylist) {
@@ -204,8 +87,7 @@ export default function LibraryScreen() {
             count: playlistData.trackCount,
             isAIGenerated: true
           };
-          
-          // Add AI playlist to mood playlists if not already there
+
           if (!moodPlaylists.find(p => p.id === aiPlaylist.id)) {
             moodPlaylists = [aiPlaylist, ...moodPlaylists];
           }
@@ -228,19 +110,16 @@ export default function LibraryScreen() {
     loadUserData();
   }, []);
 
-  // Handle URL parameter to automatically select tab
   useEffect(() => {
     if (tab === 'mood-playlist') {
       setSelectedTab('mood');
-      // Set the library items for mood tab
       setLibraryItems(moodPlaylists);
     }
   }, [tab, moodPlaylists]);
 
   const handleTabPress = (tabId: string) => {
     setSelectedTab(tabId);
-    
-    // Filter items based on selected tab
+
     switch (tabId) {
       case 'playlists':
         setLibraryItems(userPlaylists);
@@ -302,11 +181,9 @@ export default function LibraryScreen() {
         </TouchableOpacity>
       </View>
 
-    
-
       {/* Tabs */}
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}
@@ -332,14 +209,12 @@ export default function LibraryScreen() {
 
       {/* Tab Content Label */}
       <View style={styles.tabContentLabel}>
-        <View style={styles.tabContentLabelBackground}>
-          <ThemedText style={styles.tabContentLabelText}>
-            {selectedTab === 'playlists' && 'Your Playlists'}
-            {selectedTab === 'mood' && 'PlayList For your Mood'}
-            {selectedTab === 'albums' && 'Your Albums'}
-            {selectedTab === 'artists' && 'Your Artists'}
-          </ThemedText>
-        </View>
+        <ThemedText style={styles.tabContentLabelText}>
+          {selectedTab === 'playlists' && 'Your Playlists'}
+          {selectedTab === 'mood' && 'Playlist for Your Mood'}
+          {selectedTab === 'albums' && 'Your Albums'}
+          {selectedTab === 'artists' && 'Your Artists'}
+        </ThemedText>
       </View>
 
       {/* Loading State */}
@@ -351,6 +226,7 @@ export default function LibraryScreen() {
       )}
 
       {/* Error State */}
+      
       {hasError && (
         <View style={styles.errorContainer}>
           <ThemedText style={styles.errorText}>Failed to load library</ThemedText>
@@ -362,7 +238,7 @@ export default function LibraryScreen() {
 
       {/* Library Content */}
       {!isLoading && !hasError && (
-        <ScrollView 
+        <ScrollView
           style={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.contentContent}
@@ -384,7 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 45,
+    paddingTop: 60,
     paddingBottom: 10,
   },
   headerLeft: {
@@ -401,9 +277,9 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#00C2CB',
   },
   searchButton: {
     width: 32,
@@ -413,54 +289,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  likedSongsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  likedSongsIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  likedSongsText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  sortContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 2,
-  },
-    sortText: {
-    fontSize: 14,
-    color: '#00CAFE',
-    marginLeft: 8,
-  },
   tabsContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 2, // reduce vertical space (was 4)
+    paddingVertical: 0,
+    marginBottom: -4,
   },
   tabsContent: {
     alignItems: 'center',
+    paddingVertical: 0,
   },
   tabButton: {
     paddingHorizontal: 10,
-    paddingVertical: 2, // reduce button height (was 4)
-    borderRadius: 12,   // smaller radius
+    paddingVertical: 2,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
-    marginRight: 6,     // smaller spacing
+    marginRight: 6,
   },
   tabButtonActive: {
     backgroundColor: 'rgba(0, 202, 254, 0.2)',
@@ -474,12 +318,22 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#00CAFE',
   },
+  tabContentLabel: {
+    paddingHorizontal: 20,
+    paddingTop: 2,
+    paddingBottom: 8,
+    marginTop: -4,
+  },
+  tabContentLabelText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'left',
+  },
   contentContainer: {
-    flex: 1,
     paddingHorizontal: 20,
   },
   contentContent: {
-    paddingTop: 0,
     paddingBottom: 10,
   },
   libraryItem: {
@@ -531,34 +385,11 @@ const styles = StyleSheet.create({
   moreButton: {
     padding: 5,
   },
-  tabContentLabel: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabContentLabelBackground: {
-    backgroundColor: 'rgba(0, 202, 254, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 202, 254, 0.3)',
-  },
-  tabContentLabelText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 202, 254, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
   loadingContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 20,
+    minHeight: 200,
   },
   loadingText: {
     fontSize: 16,

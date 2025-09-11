@@ -37,6 +37,10 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="signup" />
+        <Stack.Screen name="email-login" />
+        <Stack.Screen name="email-signup" />
+        <Stack.Screen name="paywall" />
+        <Stack.Screen name="refer-earn" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="mood-creation" />
