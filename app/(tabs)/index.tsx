@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts, Urbanist_400Regular, Urbanist_600SemiBold, Urbanist_700Bold } from '@expo-google-fonts/urbanist';
 import { auth } from '../../src/config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -26,6 +27,13 @@ interface SpotifyPlaylist {
 }
 
 export default function HomeScreen() {
+  // Load Urbanist fonts
+  const [fontsLoaded] = useFonts({
+    Urbanist_400Regular,
+    Urbanist_600SemiBold,
+    Urbanist_700Bold,
+  });
+
   const [firstName, setFirstName] = useState('');
   const [userProfileImage, setUserProfileImage] = useState('');
   const [topTracks, setTopTracks] = useState<SpotifyTrack[]>([]);
@@ -46,14 +54,28 @@ export default function HomeScreen() {
   const [isLiked, setIsLiked] = useState(false);
   const [unsubscribePlayer, setUnsubscribePlayer] = useState<(() => void) | null>(null);
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const musicCardsAnim = useRef(new Animated.Value(0)).current;
+  const moodCardsAnim = useRef(new Animated.Value(0)).current;
+
   // Premium User Status
   const [isPremiumUser, setIsPremiumUser] = useState<boolean | null>(null);
 
   const { width } = useWindowDimensions();
 
   useEffect(() => {
+    if (!fontsLoaded) {
+      return;
+    }
+    
     // Check authentication status
     checkAuthStatus();
+    
+    // Start animations
+    startAnimations();
     
     // Cleanup function for player service
     return () => {
@@ -63,29 +85,78 @@ export default function HomeScreen() {
       const playerService = SpotifyPlayerService.getInstance();
       playerService.cleanup();
     };
-  }, [unsubscribePlayer]);
+  }, [fontsLoaded, unsubscribePlayer]);
+
+  const startAnimations = () => {
+    // Header fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
+    // Header slide up
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
+    // Scale animation
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 50,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+
+    // Staggered music cards animation
+    Animated.stagger(200, [
+      Animated.timing(musicCardsAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(moodCardsAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const createPressAnimation = (scaleValue: Animated.Value) => {
+    return Animated.sequence([
+      Animated.timing(scaleValue, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]);
+  };
 
   const checkAuthStatus = async () => {
     try {
       // Check Firebase auth state
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-          console.log('User authenticated in home screen');
           setIsAuthenticated(true);
           
           // Check if Spotify is connected
           const spotifyToken = await AsyncStorage.getItem('spotifyAccessToken');
           if (spotifyToken) {
-            console.log('Spotify connected, loading data');
             setSpotifyConnected(true);
             await loadUserData();
           } else {
-            console.log('Spotify not connected, redirecting to login');
             setSpotifyConnected(false);
             router.replace('/login');
           }
         } else {
-          console.log('User not authenticated, redirecting to email login');
           setIsAuthenticated(false);
           router.replace('/email-login');
         }
@@ -93,7 +164,6 @@ export default function HomeScreen() {
       
       return () => unsubscribe();
     } catch (error) {
-      console.error('Error checking auth status:', error);
       setIsAuthenticated(false);
       router.replace('/email-login');
     }
@@ -118,7 +188,6 @@ export default function HomeScreen() {
       // Load Spotify data
       await loadSpotifyData();
     } catch (error) {
-      console.error('Error loading user data:', error);
       setHasError(true);
       setErrorMessage('Failed to load user data');
     } finally {
@@ -134,11 +203,9 @@ export default function HomeScreen() {
         if (topTracksData?.items && Array.isArray(topTracksData.items)) {
           setTopTracks(topTracksData.items.slice(0, 6));
         } else {
-          console.log('No top tracks data available');
           setTopTracks([]);
         }
       } catch (topTracksError) {
-        console.log('Could not load top tracks:', topTracksError);
         setTopTracks([]);
       }
 
@@ -148,35 +215,28 @@ export default function HomeScreen() {
         if (playlistsData?.items && Array.isArray(playlistsData.items)) {
           setUserPlaylists(playlistsData.items.slice(0, 6));
         } else {
-          console.log('No playlists data available');
           setUserPlaylists([]);
         }
       } catch (playlistsError) {
-        console.log('Could not load playlists:', playlistsError);
         setUserPlaylists([]);
       }
 
       // Get recently played tracks with comprehensive error handling
       try {
         const recentData = await SpotifyApiService.getRecentlyPlayed();
-        console.log('Recent data response:', recentData);
         
         if (recentData && recentData.items && Array.isArray(recentData.items)) {
           const validTracks = recentData.items
             .filter((item: any) => item && item.track && item.track.id && item.track.name)
             .map((item: any) => item.track);
-          console.log('Valid tracks found:', validTracks.length);
           setRecentTracks(validTracks.slice(0, 4));
         } else {
-          console.log('No recent tracks data available or invalid format');
           setRecentTracks([]);
         }
       } catch (recentError) {
-        console.log('Could not load recently played tracks:', recentError);
         setRecentTracks([]);
       }
     } catch (error) {
-      console.error('General error in loadSpotifyData:', error);
       // Set empty arrays as fallback
       setTopTracks([]);
       setUserPlaylists([]);
@@ -203,7 +263,6 @@ export default function HomeScreen() {
       await SpotifyAuthService.logout();
       router.replace('/signup');
     } catch (error) {
-      console.error('Error logging out:', error);
     }
   };
 
@@ -225,7 +284,6 @@ export default function HomeScreen() {
         return { mood: 'neutral', color: ['#808080', '#A9A9A9'] as const };
       }
     } catch (error) {
-      console.log('Error in getMoodFromTrack:', error);
       return { mood: 'neutral', color: ['#808080', '#A9A9A9'] as const };
     }
   };
@@ -258,7 +316,6 @@ export default function HomeScreen() {
           image: data.tracks[0]?.album?.images?.[0]?.url || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=140&h=180&fit=crop'
         }));
     } catch (error) {
-      console.log('Error in getUserTopMoods:', error);
       return [];
     }
   };
@@ -282,7 +339,6 @@ export default function HomeScreen() {
         return { genre: 'Mixed', icon: 'shuffle', color: '#00CAFE' };
       }
     } catch (error) {
-      console.log('Error in getGenreFromTrack:', error);
       return { genre: 'Mixed', icon: 'shuffle', color: '#00CAFE' };
     }
   };
@@ -310,7 +366,6 @@ export default function HomeScreen() {
       setUnsubscribePlayer(unsubscribe);
       
     } catch (error) {
-      console.error('Error opening music player:', error);
     }
   };
 
@@ -335,7 +390,6 @@ export default function HomeScreen() {
         return;
       }
 
-      console.log(`Opening ${moodData.mood} mood playlist with ${moodData.tracks.length} tracks`);
       
       // Store the mood playlist data in AsyncStorage
       await AsyncStorage.setItem('moodPlaylist', JSON.stringify({
@@ -348,7 +402,6 @@ export default function HomeScreen() {
       // Navigate to the songs list with mood playlist
       router.push('/songs-list');
     } catch (error) {
-      console.error('Error opening mood playlist:', error);
       Alert.alert('Error', 'Failed to open mood playlist');
     }
   };
@@ -390,7 +443,6 @@ export default function HomeScreen() {
       setIsPlaying(true);
       
     } catch (error: any) {
-      console.error('Error opening track in Spotify:', error);
       
       Alert.alert(
         '❌ Error',
@@ -408,7 +460,6 @@ export default function HomeScreen() {
       const playerService = SpotifyPlayerService.getInstance();
       await playerService.nextTrack();
     } catch (error) {
-      console.error('Error skipping to next track:', error);
     }
   };
 
@@ -417,7 +468,6 @@ export default function HomeScreen() {
       const playerService = SpotifyPlayerService.getInstance();
       await playerService.previousTrack();
     } catch (error) {
-      console.error('Error skipping to previous track:', error);
     }
   };
 
@@ -436,7 +486,6 @@ export default function HomeScreen() {
       setCurrentTime(newTime);
       setProgress(seekPercentage * 100);
     } catch (error) {
-      console.error('Error seeking:', error);
     }
   };
 
@@ -451,7 +500,6 @@ export default function HomeScreen() {
       }
       setIsLiked(!isLiked);
     } catch (error) {
-      console.error('Error toggling like:', error);
       // Fallback to local state if API fails
       setIsLiked(!isLiked);
     }
@@ -471,7 +519,6 @@ export default function HomeScreen() {
       alert('Spotify tokens cleared. Please re-authenticate to fix playback.');
       handleLogout(); // Log out to force re-authentication
     } catch (error) {
-      console.error('Error clearing Spotify tokens:', error);
       alert('Failed to clear Spotify tokens.');
     }
   };
@@ -483,14 +530,11 @@ export default function HomeScreen() {
       // If we can control playback, user likely has Premium
       // For now, we'll assume Premium if basic API works
       setIsPremiumUser(true);
-      console.log('✅ Premium user detected');
     } catch (error: any) {
       if (error.message.includes('403') || error.message.includes('Playback control not allowed')) {
         setIsPremiumUser(false);
-        console.log('ℹ️ Free user detected');
       } else {
         setIsPremiumUser(null);
-        console.log('❓ User status unknown');
       }
     }
   };
@@ -513,7 +557,6 @@ export default function HomeScreen() {
         await openInSpotifyApp();
       }
     } catch (error) {
-      console.error('Error in smart playback:', error);
       // Fallback to opening in Spotify app
       await openInSpotifyApp();
     }
@@ -541,7 +584,6 @@ export default function HomeScreen() {
         [{ text: 'Awesome!', style: 'default' }]
       );
     } catch (error: any) {
-      console.error('Premium playback failed:', error);
       Alert.alert(
         '⚠️ Premium Playback Failed',
         'Falling back to Spotify app...',
@@ -588,7 +630,6 @@ export default function HomeScreen() {
       setIsPlaying(true);
       
     } catch (error: any) {
-      console.error('Error opening track in Spotify:', error);
       
       Alert.alert(
         '❌ Error',
@@ -633,6 +674,15 @@ export default function HomeScreen() {
     );
   }
 
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00CAFE" />
+        <Text style={styles.loadingText}>Loading fonts...</Text>
+      </View>
+    );
+  }
+
   if (hasError) {
     return (
       <View style={styles.errorContainer}>
@@ -650,14 +700,30 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
           <View style={styles.headerLeft}>
-            <Image 
-              source={{ 
-                uri: userProfileImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face' 
+            <Animated.View
+              style={{
+                transform: [{ scale: scaleAnim }]
               }}
-              style={styles.avatar}
-            />
+            >
+              <Image 
+                source={{ 
+                  uri: userProfileImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face' 
+                }}
+                style={styles.avatar}
+                cachePolicy="memory-disk"
+                recyclingKey="profile"
+              />
+            </Animated.View>
             <View style={styles.headerText}>
               <Text style={styles.welcomeText}>Welcome back!</Text>
               <Text style={styles.userName}>{firstName || 'chandrama'}</Text>
@@ -686,12 +752,23 @@ export default function HomeScreen() {
               <Ionicons name="settings" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
 
 
         {/* Top Listening Section */}
-        <View style={styles.section}>
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: musicCardsAnim,
+              transform: [{ translateY: musicCardsAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [30, 0]
+              })}]
+            }
+          ]}
+        >
           <Text style={styles.sectionTitle}>Top Listening</Text>
           <View style={styles.topListeningGrid}>
             {topTracks.length > 0 ? (
@@ -717,8 +794,8 @@ export default function HomeScreen() {
                           end={{ x: 1, y: 1 }}
                           style={styles.musicCardTextContainer}
                         >
-                          <Text style={styles.musicCardText} numberOfLines={1}>
-                            {track.name.length > 15 ? track.name.substring(0, 15) + '...' : track.name}
+                          <Text style={styles.musicCardText} numberOfLines={2}>
+                            {track.name}
                           </Text>
                           <Text style={styles.musicCardArtist} numberOfLines={1}>
                             {track.artists?.[0]?.name || 'Unknown Artist'}
@@ -728,7 +805,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   );
                 } catch (error) {
-                  console.log('Error rendering track:', error);
                   return null;
                 }
               }).filter(Boolean)
@@ -751,7 +827,7 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>Coffee & Jazz</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>Coffee & Jazz</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -771,7 +847,7 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>RELEASED</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>RELEASED</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -791,7 +867,7 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>Anything Goes</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>Anything Goes</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -811,7 +887,7 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>Anime OSTs</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>Anime OSTs</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -831,7 +907,7 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>Harry's House</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>Harry's House</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -851,17 +927,28 @@ export default function HomeScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.musicCardTextContainer}
                     >
-                      <Text style={styles.musicCardText}>Lo-Fi Beats</Text>
+                      <Text style={styles.musicCardText} numberOfLines={2}>Lo-Fi Beats</Text>
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
               </>
             )}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Your Top Moods Section */}
-        <View style={styles.section}>
+        <Animated.View 
+          style={[
+            styles.section,
+            {
+              opacity: moodCardsAnim,
+              transform: [{ translateY: moodCardsAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [30, 0]
+              })}]
+            }
+          ]}
+        >
           <Text style={styles.sectionTitle}>Your Top Moods</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodsContainer}>
             {topTracks.length > 0 ? (
@@ -895,7 +982,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   );
                 } catch (error) {
-                  console.log('Error rendering mood card:', error);
                   return null;
                 }
               }).filter(Boolean)
@@ -962,7 +1048,7 @@ export default function HomeScreen() {
               </>
             )}
           </ScrollView>
-        </View>
+        </Animated.View>
 
         {/* Based on your recent listening */}
         <View style={styles.section}>
@@ -999,7 +1085,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   );
                 } catch (error) {
-                  console.log('Error rendering recent track:', error);
                   return null;
                 }
               }).filter(Boolean)
@@ -1066,7 +1151,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   );
                 } catch (error) {
-                  console.log('Error rendering playlist:', error);
                   return null;
                 }
               }).filter(Boolean)}
@@ -1132,7 +1216,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   scrollView: {
     flex: 1,
@@ -1141,23 +1225,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   loadingText: {
     marginTop: 10,
     color: '#FFFFFF',
     fontSize: 16,
+    fontFamily: 'Urbanist_400Regular',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
     paddingHorizontal: 20,
   },
   errorTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: 'Urbanist_700Bold',
     color: '#FFFFFF',
     marginTop: 20,
     marginBottom: 10,
@@ -1165,6 +1250,7 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 16,
+    fontFamily: 'Urbanist_400Regular',
     color: '#FFFFFF',
     opacity: 0.8,
     marginBottom: 30,
@@ -1178,8 +1264,8 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: 16,
+    fontFamily: 'Urbanist_600SemiBold',
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -1204,15 +1290,14 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   welcomeText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontFamily: 'Urbanist_700Bold',
     color: '#FFFFFF',
-    opacity: 0.8,
-    fontWeight: '400',
   },
   userName: {
     fontSize: 18,
+    fontFamily: 'Urbanist_600SemiBold',
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   headerActions: {
     flexDirection: 'row',
@@ -1243,7 +1328,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: 'Urbanist_700Bold',
     color: '#FFFFFF',
     marginBottom: 20,
   },
@@ -1251,50 +1336,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
   musicCard: {
     width: '48%',
     backgroundColor: 'transparent',
     borderRadius: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     overflow: 'hidden',
   },
   musicCardContent: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     height: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   musicCardImage: {
     width: 80,
     height: 80,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   musicCardTextContainer: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
+    height: 80,
   },
   musicCardText: {
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: 'Urbanist_600SemiBold',
     color: '#FFFFFF',
-    fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'left',
+    lineHeight: 16,
   },
   musicCardArtist: {
-    fontSize: 12,
+    fontSize: 11,
+    fontFamily: 'Urbanist_400Regular',
     color: '#FFFFFF',
     opacity: 0.8,
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: 2,
   },
   musicCardSubtext: {
     fontSize: 10,
+    fontFamily: 'Urbanist_600SemiBold',
     color: '#00CAFE',
-    fontWeight: '600',
     marginTop: 2,
   },
   moodsContainer: {

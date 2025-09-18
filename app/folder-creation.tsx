@@ -19,7 +19,6 @@ export default function FolderCreationScreen() {
       // Navigate to home tabs
       router.replace('/(tabs)' as any);
     } catch (error) {
-      console.error('Error saving folder:', error);
       router.replace('/(tabs)' as any);
     }
   };
@@ -30,7 +29,6 @@ export default function FolderCreationScreen() {
       await AsyncStorage.setItem('isFirstTimeUser', 'false');
       router.replace('/(tabs)' as any);
     } catch (error) {
-      console.error('Error skipping:', error);
     }
   };
 
@@ -108,7 +106,7 @@ export default function FolderCreationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   scrollView: {
     flex: 1,

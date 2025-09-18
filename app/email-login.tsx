@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '../src/services/authService';
@@ -19,11 +20,12 @@ import { SubscriptionService } from '../src/services/subscriptionService';
 import { auth } from '../src/config/firebase';
 import SuccessModal from '../src/components/SuccessModal';
 
-export default function EmailLoginScreen() {
+const EmailLoginScreen = memo(() => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState({
     title: '',
@@ -32,30 +34,24 @@ export default function EmailLoginScreen() {
     onPress: () => {}
   });
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    console.log('🚀 Attempting login with:', email);
     setIsLoading(true);
     try {
       const result = await AuthService.signIn(email, password);
-      console.log('🚀 Login result:', result);
       
       if (result.success) {
-        console.log('🚀 Login successful, checking subscription...');
         // Check subscription status
         const subscription = await SubscriptionService.getSubscriptionStatus(result.user.uid);
-        console.log('🚀 Subscription status:', subscription);
         
         if (subscription?.status === 'trial' || subscription?.status === 'active') {
-          console.log('🚀 User has active subscription (trial or premium), checking Spotify connection...');
           // Check if user has connected Spotify
           const spotifyConnected = await AsyncStorage.getItem('spotifyAccessToken');
           if (spotifyConnected) {
-            console.log('🚀 Spotify connected, going to main app');
             setSuccessData({
               title: 'Welcome Back! 🎉',
               message: 'Login successful! Taking you to your music library.',
@@ -67,7 +63,6 @@ export default function EmailLoginScreen() {
             });
             setShowSuccessModal(true);
           } else {
-            console.log('🚀 Spotify not connected, redirecting to Spotify login');
             setSuccessData({
               title: 'Login Successful! ✅',
               message: 'Now connect your Spotify account to access your music.',
@@ -80,7 +75,6 @@ export default function EmailLoginScreen() {
             setShowSuccessModal(true);
           }
         } else {
-          console.log('🚀 User needs subscription (status:', subscription?.status, '), going to paywall for free trial');
           setSuccessData({
             title: 'Login Successful! ✅',
             message: 'Choose your plan to start your musical journey with Moodify.',
@@ -94,12 +88,11 @@ export default function EmailLoginScreen() {
         }
       }
     } catch (error: any) {
-      console.log('🚀 Login error:', error);
       Alert.alert('Login Failed', error.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, password]);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -117,71 +110,91 @@ export default function EmailLoginScreen() {
 
   const handleLogout = async () => {
     try {
-      console.log('🚀 Logging out...');
       await AuthService.signOut();
-      console.log('✅ Logout successful');
       // Clear all local storage
       await AsyncStorage.clear();
       // Redirect to login
       router.replace('/email-login');
     } catch (error: any) {
-      console.error('❌ Logout error:', error);
       Alert.alert('Logout Failed', error.message);
     }
   };
 
   return (
-    <LinearGradient
-      colors={['#1a1a2e', '#16213e', '#0f3460']}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-              >
-                <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                placeholderTextColor="#666"
-                keyboardType="email-address"
-                autoCapitalize="none"
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../assets/logo/logo.png')}
+                style={styles.logoImage}
+                contentFit="contain"
               />
             </View>
+          </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
+          {/* Title */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Login to your account</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Email Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </LinearGradient>
+
+            {/* Password Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
+                <TextInput
+                  style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#666"
+                  placeholder="Password"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
                   secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity
@@ -191,43 +204,53 @@ export default function EmailLoginScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={20}
-                    color="#666"
+                    color="rgba(255, 255, 255, 0.6)"
                   />
                 </TouchableOpacity>
               </View>
+            </LinearGradient>
+
+            {/* Remember Me */}
+            <View style={styles.rememberContainer}>
+              <TouchableOpacity 
+                style={styles.checkboxContainer}
+                onPress={() => setRememberMe(!rememberMe)}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && <Ionicons name="checkmark" size={16} color="#00CAFE" />}
+                </View>
+                <Text style={styles.rememberText}>Remember me</Text>
+              </TouchableOpacity>
             </View>
 
+            {/* Login Button */}
+            <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              <LinearGradient
+                colors={['#00DEFF', '#0043F7', '#0E1D92', '#001C89', '#B22CFF']}
+                locations={[0.0185, 0.3205, 0.5181, 0.6465, 0.9599]}
+                style={styles.loginButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.loginButtonText}>
+                  {isLoading ? 'Signing In...' : 'Login'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Forgot Password */}
             <TouchableOpacity
               style={styles.forgotButton}
               onPress={handleForgotPassword}
             >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+              <Text style={styles.forgotText}>Forgot the password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.disabledButton]}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              <Text style={styles.loginButtonText}>
-                {isLoading ? 'Signing In...' : 'Sign In'}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={styles.spotifyButton}
-              onPress={() => router.push('/login')}
-            >
-              <Ionicons name="musical-notes" size={20} color="#1DB954" />
-              <Text style={styles.spotifyButtonText}>Continue with Spotify</Text>
-            </TouchableOpacity>
-
+            {/* Signup Link */}
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => router.push('/email-signup')}>
@@ -248,29 +271,24 @@ export default function EmailLoginScreen() {
         icon="checkmark-circle"
         color="#00CAFE"
       />
-    </LinearGradient>
+    </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#03021F',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
   },
   header: {
     marginTop: 60,
-    marginBottom: 40,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 20,
   },
   backButton: {
@@ -281,131 +299,137 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    justifyContent: 'center',
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoContainer: {
     alignItems: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
+  logoImage: {
+    width: 250,
+    height: 250,
+    marginBottom: 10,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#CCCCCC',
+  titleSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
   form: {
     flex: 1,
   },
-  inputContainer: {
+  gradientBorder: {
+    borderRadius: 8.538,
+    padding: 1.5,
     marginBottom: 20,
   },
-  label: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 8,
-    fontWeight: '500',
+  inputContainer: {
+    position: 'relative',
+    backgroundColor: '#03021F',
+    borderRadius: 7.038,
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    zIndex: 1,
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 8.538,
+    padding: 16,
+    paddingLeft: 50,
     fontSize: 16,
     color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#FFFFFF',
+    borderWidth: 0,
+    minHeight: 56,
   },
   eyeButton: {
-    paddingHorizontal: 16,
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 1,
+    padding: 4,
+  },
+  rememberContainer: {
+    marginBottom: 30,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#00CAFE',
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: 'rgba(0, 202, 254, 0.1)',
+  },
+  rememberText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  loginButton: {
+    borderRadius: 30,
+    marginBottom: 20,
+    shadowColor: '#00CAFE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loginButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   forgotButton: {
-    alignSelf: 'flex-end',
+    alignItems: 'center',
     marginBottom: 30,
   },
   forgotText: {
     color: '#00CAFE',
-    fontSize: 14,
-  },
-  loginButton: {
-    backgroundColor: '#00CAFE',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dividerText: {
-    color: '#CCCCCC',
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  spotifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 30,
-  },
-  spotifyButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: 8,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 20,
   },
   signupText: {
-    color: '#CCCCCC',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 16,
   },
   signupLink: {
     color: '#00CAFE',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
+
+export default EmailLoginScreen;

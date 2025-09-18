@@ -20,7 +20,6 @@ export default function WelcomeScreen() {
         setUserName(firstName);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
     }
   };
 
@@ -33,7 +32,6 @@ export default function WelcomeScreen() {
       await AsyncStorage.removeItem('onboardingCompleted');
       router.replace('/signup');
     } catch (error) {
-      console.error('Error logging out:', error);
     }
   };
 
@@ -87,7 +85,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   header: {
     flexDirection: 'row',

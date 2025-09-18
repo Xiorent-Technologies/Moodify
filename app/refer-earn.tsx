@@ -34,7 +34,6 @@ export default function ReferEarnScreen() {
         setReferralCode(code || '');
       }
     } catch (error) {
-      console.error('Error loading referral code:', error);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +59,6 @@ export default function ReferEarnScreen() {
         title: 'Join Moodify with my referral code!',
       });
     } catch (error) {
-      console.error('Error sharing:', error);
     }
   };
 

@@ -219,6 +219,16 @@ export class SpotifyApiService {
     });
   }
 
+  // Get album tracks
+  static async getAlbumTracks(albumId: string, limit = 50, offset = 0) {
+    return this.makeRequest(`/albums/${albumId}/tracks?limit=${limit}&offset=${offset}`);
+  }
+
+  // Get artist top tracks
+  static async getArtistTopTracks(artistId: string, market = 'US') {
+    return this.makeRequest(`/artists/${artistId}/top-tracks?market=${market}`);
+  }
+
   // Get available genres
   static async getAvailableGenres() {
     return this.makeRequest('/recommendations/available-genre-seeds');

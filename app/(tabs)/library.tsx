@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useLocalSearchParams, router } from 'expo-router';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts, Urbanist_400Regular, Urbanist_600SemiBold, Urbanist_700Bold } from '@expo-google-fonts/urbanist';
 import { ThemedText } from '../../src/components/ThemedText';
 import { SpotifyApiService } from '../../src/services/spotifyApi';
 
@@ -18,7 +20,14 @@ interface LibraryItem {
   count?: number;
 }
 
-export default function LibraryScreen() {
+const LibraryScreen = memo(() => {
+  // Load Urbanist fonts
+  const [fontsLoaded] = useFonts({
+    Urbanist_400Regular,
+    Urbanist_600SemiBold,
+    Urbanist_700Bold,
+  });
+
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [selectedTab, setSelectedTab] = useState('playlists');
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
@@ -93,22 +102,23 @@ export default function LibraryScreen() {
           }
         }
       } catch (error) {
-        console.error('Error loading AI playlist:', error);
       }
 
       setMoodPlaylists(moodPlaylists);
 
       setIsLoading(false);
     } catch (error) {
-      console.error('Error loading user data:', error);
       setHasError(true);
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!fontsLoaded) {
+      return;
+    }
     loadUserData();
-  }, []);
+  }, [fontsLoaded]);
 
   useEffect(() => {
     if (tab === 'mood-playlist') {
@@ -117,39 +127,86 @@ export default function LibraryScreen() {
     }
   }, [tab, moodPlaylists]);
 
-  const handleTabPress = (tabId: string) => {
-    setSelectedTab(tabId);
+  useEffect(() => {
+    const items = getItemsForTab();
+  }, [selectedTab]);
 
-    switch (tabId) {
+  const handleTabPress = useCallback((tabId: string) => {
+    setSelectedTab(tabId);
+  }, []);
+
+  const getItemsForTab = () => {
+    let items = [];
+    switch (selectedTab) {
       case 'playlists':
-        setLibraryItems(userPlaylists);
+        items = userPlaylists;
         break;
       case 'mood':
-        setLibraryItems(moodPlaylists);
+        items = moodPlaylists;
         break;
       case 'albums':
-        setLibraryItems(userAlbums);
+        items = userAlbums;
         break;
       case 'artists':
-        setLibraryItems(userArtists);
+        items = userArtists;
         break;
       default:
-        setLibraryItems(userPlaylists);
+        items = userPlaylists;
+    }
+    
+    return items;
+  };
+
+  const handleItemPress = (item: LibraryItem) => {
+    if (item.type === 'playlist') {
+      // Navigate to songs list with playlist data
+      router.push({
+        pathname: '/songs-list',
+        params: {
+          playlistId: item.id,
+          playlistName: item.title,
+          playlistImage: item.image,
+          trackCount: item.count || 0
+        }
+      });
+    } else if (item.type === 'album') {
+      // Navigate to album details
+      router.push({
+        pathname: '/songs-list',
+        params: {
+          albumId: item.id,
+          albumName: item.title,
+          albumImage: item.image,
+          trackCount: item.count || 0
+        }
+      });
+    } else if (item.type === 'artist') {
+      // Navigate to artist details
+      router.push({
+        pathname: '/songs-list',
+        params: {
+          artistId: item.id,
+          artistName: item.title,
+          artistImage: item.image
+        }
+      });
     }
   };
 
-  const getItemsForTab = () => {
-    return libraryItems;
-  };
-
-  const renderLibraryItem = (item: LibraryItem) => (
-    <TouchableOpacity key={item.id} style={styles.libraryItem}>
+  const renderLibraryItem = useCallback((item: LibraryItem) => (
+    <TouchableOpacity 
+      key={item.id} 
+      style={styles.libraryItem}
+      onPress={() => handleItemPress(item)}
+    >
       <View style={styles.itemImageContainer}>
-        <Image
-          source={{ uri: item.image }}
-          style={styles.itemImage}
-          contentFit="cover"
-        />
+              <Image
+                source={{ uri: item.image }}
+                style={styles.itemImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={item.id}
+              />
         {item.type === 'playlist' && (
           <View style={styles.playlistIcon}>
             <Ionicons name="musical-notes" size={16} color="#FFFFFF" />
@@ -164,103 +221,144 @@ export default function LibraryScreen() {
         <Ionicons name="ellipsis-vertical" size={20} color="rgba(255, 255, 255, 0.6)" />
       </TouchableOpacity>
     </TouchableOpacity>
-  );
+  ), [handleItemPress]);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00CAFE" />
+          <ThemedText style={styles.loadingText}>Loading fonts...</ThemedText>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.musicNoteIcon}>
-            <Ionicons name="musical-note" size={24} color="#00CAFE" />
+      {/* Fixed Header */}
+      <View style={styles.fixedHeader}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.musicNoteIcon}>
+              <Ionicons name="musical-note" size={24} color="#00CAFE" />
+            </View>
+            <ThemedText style={styles.headerTitle}>Your Library</ThemedText>
           </View>
-          <ThemedText style={styles.headerTitle}>Your Library</ThemedText>
-        </View>
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsContainer}
-        contentContainerStyle={styles.tabsContent}
-      >
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[
-              styles.tabButton,
-              selectedTab === tab.id && styles.tabButtonActive
-            ]}
-            onPress={() => handleTabPress(tab.id)}
-          >
-            <ThemedText style={[
-              styles.tabText,
-              selectedTab === tab.id && styles.tabTextActive
-            ]}>
-              {tab.label}
-            </ThemedText>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Tab Content Label */}
-      <View style={styles.tabContentLabel}>
-        <ThemedText style={styles.tabContentLabelText}>
-          {selectedTab === 'playlists' && 'Your Playlists'}
-          {selectedTab === 'mood' && 'Playlist for Your Mood'}
-          {selectedTab === 'albums' && 'Your Albums'}
-          {selectedTab === 'artists' && 'Your Artists'}
-        </ThemedText>
-      </View>
-
-      {/* Loading State */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00CAFE" />
-          <ThemedText style={styles.loadingText}>Loading your library...</ThemedText>
-        </View>
-      )}
-
-      {/* Error State */}
-      
-      {hasError && (
-        <View style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>Failed to load library</ThemedText>
-          <TouchableOpacity style={styles.retryButton} onPress={loadUserData}>
-            <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+          <TouchableOpacity style={styles.searchButton}>
+            <Ionicons name="search" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* Library Content */}
-      {!isLoading && !hasError && (
+        {/* Tabs */}
         <ScrollView
-          style={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.contentContent}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsContainer}
+          contentContainerStyle={styles.tabsContent}
         >
-          {getItemsForTab().map(renderLibraryItem)}
+          {tabs.map((tab, index) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={styles.tabButton}
+              onPress={() => handleTabPress(tab.id)}
+            >
+              {selectedTab === tab.id ? (
+                <LinearGradient
+                  colors={['#00DEFF', '#0043F7', '#0E1D92', '#001C89', '#B22CFF']}
+                  locations={[0.0185, 0.3205, 0.5181, 0.6465, 0.9599]}
+                  style={styles.tabButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <ThemedText style={styles.tabTextActive}>
+                    {tab.label}
+                  </ThemedText>
+                </LinearGradient>
+              ) : (
+                <ThemedText style={styles.tabText}>
+                  {tab.label}
+                </ThemedText>
+              )}
+            </TouchableOpacity>
+          ))}
         </ScrollView>
-      )}
+
+        {/* Tab Content Label */}
+        <View style={styles.tabContentLabel}>
+          <ThemedText style={styles.tabContentLabelText}>
+            {selectedTab === 'playlists' && 'Your Playlists'}
+            {selectedTab === 'mood' && 'Playlist for Your Mood'}
+            {selectedTab === 'albums' && 'Your Albums'}
+            {selectedTab === 'artists' && 'Your Artists'}
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Scrollable Content */}
+      <View style={styles.scrollableContent}>
+        {/* Loading State */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#00CAFE" />
+            <ThemedText style={styles.loadingText}>Loading your library...</ThemedText>
+          </View>
+        )}
+
+        {/* Error State */}
+        {hasError && (
+          <View style={styles.errorContainer}>
+            <ThemedText style={styles.errorText}>Failed to load library</ThemedText>
+            <TouchableOpacity style={styles.retryButton} onPress={loadUserData}>
+              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Library Content */}
+        {!isLoading && !hasError && (
+          <ScrollView
+            style={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.contentContent}
+          >
+            {(() => {
+              const items = getItemsForTab();
+              return items.map(renderLibraryItem);
+            })()}
+          </ScrollView>
+        )}
+      </View>
     </View>
   );
-}
+});
+
+export default LibraryScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: '#03021F',
+  },
+  scrollableContent: {
+    flex: 1,
+    paddingTop: 250, // Space for header + tabs + content label + extra spacing
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 70,
     paddingBottom: 10,
   },
   headerLeft: {
@@ -278,12 +376,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 30,
-    fontWeight: 'bold',
+    fontFamily: 'Urbanist_700Bold',
     color: '#00C2CB',
+    lineHeight: 36,
   },
   searchButton: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
@@ -291,47 +390,65 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 0,
-    marginBottom: -4,
+    paddingVertical: 8,
+    marginBottom: 4,
+    marginTop: 8,
   },
   tabsContent: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 0,
+    gap: 6,
+    paddingHorizontal: 0,
   },
   tabButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 12,
+    marginRight: 8,
+    marginLeft: 0,
+    width: 100,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'transparent',
-    marginRight: 6,
+    borderColor: '#FFFFFF',
+    borderRadius: 30,
   },
-  tabButtonActive: {
-    backgroundColor: 'rgba(0, 202, 254, 0.2)',
-    borderColor: 'rgba(0, 202, 254, 0.5)',
+  tabButtonGradient: {
+    width: 100,
+    height: 28,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    // borderColor: '#FFFFFF',
   },
   tabText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 16,
+    fontFamily: 'Urbanist_400Regular',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   tabTextActive: {
-    color: '#00CAFE',
+    fontSize: 16,
+    fontFamily: 'Urbanist_600SemiBold',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
   tabContentLabel: {
     paddingHorizontal: 20,
-    paddingTop: 2,
-    paddingBottom: 8,
-    marginTop: -4,
+    paddingTop: 16,
+    paddingBottom: 12,
+    marginTop: 8,
+    marginLeft: 0,
+    alignSelf: 'flex-start',
   },
   tabContentLabelText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 28,
+    fontFamily: 'Urbanist_700Bold',
     color: '#FFFFFF',
     textAlign: 'left',
+    lineHeight: 36,
   },
   contentContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
   },
   contentContent: {
     paddingBottom: 10,
@@ -339,7 +456,8 @@ const styles = StyleSheet.create({
   libraryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical:20,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },

@@ -12,14 +12,12 @@ const base64Encode = (str: string): string => {
 export class SpotifyAuthService {
     static async authenticate(retryCount = 0): Promise<any> {
     try {
-      console.log(`Starting Spotify authentication... (attempt ${retryCount + 1})`);
 
       // Check if we already have an auth code from deep link
       const existingAuthCode = await AsyncStorage.getItem('spotifyAuthCode');
       const existingState = await AsyncStorage.getItem('spotifyAuthState');
       
       if (existingAuthCode && existingState) {
-        console.log('✅ Found existing auth code from deep link, using it directly');
         
         // Clear the stored auth code
         await AsyncStorage.multiRemove(['spotifyAuthCode', 'spotifyAuthState']);
@@ -32,7 +30,6 @@ export class SpotifyAuthService {
         await AsyncStorage.setItem('spotifyRefreshToken', tokens.refresh_token);
         await AsyncStorage.setItem('spotifyTokenExpiry', (Date.now() + (tokens.expires_in * 1000)).toString());
         
-        console.log('✅ Tokens obtained from stored auth code');
         return tokens;
       }
 
@@ -42,7 +39,6 @@ export class SpotifyAuthService {
       // Build the authorization URL with the custom scheme
       const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CONFIG.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(SPOTIFY_CONFIG.REDIRECT_URI)}&scope=${encodeURIComponent(SPOTIFY_CONFIG.SCOPES)}&state=${state}&show_dialog=true`;
 
-      console.log('Opening Spotify OAuth URL:', authUrl);
 
       // Open the OAuth URL in a web browser
       const result = await WebBrowser.openAuthSessionAsync(
@@ -50,26 +46,19 @@ export class SpotifyAuthService {
         SPOTIFY_CONFIG.REDIRECT_URI
       );
       
-            console.log('WebBrowser result:', result);
-      console.log('Result type:', result.type);
 
       if (result.type === 'success') {
-        console.log('✅ OAuth completed successfully');
         
         // The deep link handler should have captured the auth code
         // Let's check if we have it and proceed with token exchange
         
-        console.log('🔍 Checking for stored auth code...');
         
         // Check if we received the auth code via deep link
         const authCode = await AsyncStorage.getItem('spotifyAuthCode');
         const authState = await AsyncStorage.getItem('spotifyAuthState');
         
-        console.log('📱 Stored auth code:', authCode ? 'Found' : 'Not found');
-        console.log('📱 Stored auth state:', authState ? 'Found' : 'Not found');
         
         if (authCode && authState) {
-          console.log('✅ Auth code received via deep link, exchanging for tokens...');
           
           // Clear the stored auth code
           await AsyncStorage.multiRemove(['spotifyAuthCode', 'spotifyAuthState']);
@@ -82,20 +71,16 @@ export class SpotifyAuthService {
           await AsyncStorage.setItem('spotifyRefreshToken', tokens.refresh_token);
           await AsyncStorage.setItem('spotifyTokenExpiry', (Date.now() + (tokens.expires_in * 1000)).toString());
           
-          console.log('✅ Tokens obtained successfully');
           return tokens;
         } else {
           throw new Error('OAuth completed but no auth code received. The deep link may not have been captured. Please try again.');
         }
       } else if (result.type === 'cancel') {
-        console.log('Authentication cancelled by user');
         throw new Error('Authentication cancelled by user');
       } else {
-        console.log('Authentication failed, result type:', result.type);
         throw new Error('Authentication failed');
       }
     } catch (error) {
-      console.error('Spotify authentication error:', error);
       
       // Retry logic for certain errors
       if (retryCount < 2 && (
@@ -105,7 +90,6 @@ export class SpotifyAuthService {
           error.message.includes('OAuth')
         )
       )) {
-        console.log(`Retrying authentication... (${retryCount + 1}/2)`);
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
         return this.authenticate(retryCount + 1);
       }
@@ -116,7 +100,6 @@ export class SpotifyAuthService {
 
   static async exchangeCodeForTokens(code: string) {
     try {
-      console.log('Exchanging authorization code for tokens...');
       
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
@@ -133,15 +116,12 @@ export class SpotifyAuthService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Token exchange failed:', response.status, errorText);
         throw new Error(`Failed to exchange code for tokens: ${response.status}`);
       }
 
       const tokens = await response.json();
-      console.log('Token exchange successful');
       return tokens;
     } catch (error) {
-      console.error('Token exchange error:', error);
       throw error;
     }
   }
@@ -158,13 +138,11 @@ export class SpotifyAuthService {
       // Check if token is expired
       const expiryTime = parseInt(expiry);
       if (Date.now() >= expiryTime) {
-        console.log('Access token expired, refreshing...');
         return await this.refreshAccessToken();
       }
 
       return token;
     } catch (error) {
-      console.error('Error getting access token:', error);
       return null;
     }
   }
@@ -177,7 +155,6 @@ export class SpotifyAuthService {
         throw new Error('No refresh token available');
       }
 
-      console.log('Refreshing access token...');
       
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
@@ -193,7 +170,6 @@ export class SpotifyAuthService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Token refresh failed:', response.status, errorText);
         throw new Error(`Failed to refresh token: ${response.status}`);
       }
 
@@ -206,10 +182,8 @@ export class SpotifyAuthService {
       }
       await AsyncStorage.setItem('spotifyTokenExpiry', (Date.now() + (tokens.expires_in * 1000)).toString());
       
-      console.log('Access token refreshed successfully');
       return tokens.access_token;
     } catch (error) {
-      console.error('Token refresh error:', error);
       // If refresh fails, clear tokens and force re-authentication
       await this.logout();
       throw error;
@@ -235,7 +209,6 @@ export class SpotifyAuthService {
       }
 
       const profile = await response.json();
-      console.log('User profile fetched:', profile.display_name);
       
       // Save user info to AsyncStorage
       await AsyncStorage.setItem('spotifyUserId', profile.id);
@@ -249,7 +222,6 @@ export class SpotifyAuthService {
       
       return profile;
     } catch (error) {
-      console.error('Error getting user profile:', error);
       throw error;
     }
   }
@@ -265,9 +237,8 @@ export class SpotifyAuthService {
         'spotifyDisplayName',
         'spotifyProfileImage'
       ]);
-      console.log('Spotify logout successful');
     } catch (error) {
-      console.error('Logout error:', error);
+      throw error;
     }
   }
 
@@ -284,7 +255,6 @@ export class SpotifyAuthService {
       const expiryTime = parseInt(expiry);
       return Date.now() < expiryTime;
     } catch (error) {
-      console.error('Error checking authentication status:', error);
       return false;
     }
   }

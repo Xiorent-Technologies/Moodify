@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { AuthService } from '../src/services/authService';
 import SuccessModal from '../src/components/SuccessModal';
@@ -26,7 +27,6 @@ export default function EmailSignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState({
     title: '',
@@ -48,11 +48,6 @@ export default function EmailSignupScreen() {
 
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
-    if (!agreeToTerms) {
-      Alert.alert('Error', 'Please agree to Terms & Conditions');
       return;
     }
 
@@ -86,15 +81,13 @@ export default function EmailSignupScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1a1a2e', '#16213e', '#0f3460']}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {/* Header with back button */}
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
@@ -102,56 +95,106 @@ export default function EmailSignupScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join Moodify today</Text>
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.nameContainer}>
-              <View style={[styles.inputContainer, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>First Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="First name"
-                  placeholderTextColor="#666"
-                />
-              </View>
-              <View style={[styles.inputContainer, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.label}>Last Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Last name"
-                  placeholderTextColor="#666"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                placeholderTextColor="#666"
-                keyboardType="email-address"
-                autoCapitalize="none"
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../assets/logo/logo.png')}
+                style={styles.logoImage}
+                contentFit="contain"
               />
             </View>
+          </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
+          {/* Title */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Let's get you in</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Name Fields */}
+            <View style={styles.nameRow}>
+              <View style={styles.nameField}>
+                <LinearGradient
+                  colors={['#00CAFE', '#0D2099', '#B12BFE']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.gradientBorder}
+                >
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      placeholder="Frist Name"
+                      placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    />
+                  </View>
+                </LinearGradient>
+              </View>
+              <View style={styles.nameField}>
+                <LinearGradient
+                  colors={['#00CAFE', '#0D2099', '#B12BFE']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={styles.gradientBorder}
+                >
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={lastName}
+                      onChangeText={setLastName}
+                      placeholder="Last Name"
+                      placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                    />
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+
+            {/* Email Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="mail" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </LinearGradient>
+
+            {/* Password Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
+                <TextInput
+                  style={styles.input}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Create password"
-                  placeholderTextColor="#666"
+                  placeholder="Password"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
                   secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity
@@ -161,21 +204,29 @@ export default function EmailSignupScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={20}
-                    color="#666"
+                    color="rgba(255, 255, 255, 0.6)"
                   />
                 </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <View style={styles.passwordContainer}>
+            {/* Confirm Password Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
+            >
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="lock-closed" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={styles.input}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="Confirm password"
-                  placeholderTextColor="#666"
+                  placeholder="Confirm Password"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
                   secureTextEntry={!showConfirmPassword}
                 />
                 <TouchableOpacity
@@ -185,51 +236,58 @@ export default function EmailSignupScreen() {
                   <Ionicons
                     name={showConfirmPassword ? 'eye-off' : 'eye'}
                     size={20}
-                    color="#666"
+                    color="rgba(255, 255, 255, 0.6)"
                   />
                 </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Referral Code (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={referralCode}
-                onChangeText={setReferralCode}
-                placeholder="Enter referral code"
-                placeholderTextColor="#666"
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.termsContainer}
-              onPress={() => setAgreeToTerms(!agreeToTerms)}
+            {/* Referral Code Field */}
+            <LinearGradient
+              colors={['#00CAFE', '#0D2099', '#B12BFE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.gradientBorder}
             >
-              <View style={styles.checkbox}>
-                {agreeToTerms && <Ionicons name="checkmark" size={16} color="#00CAFE" />}
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIcon}>
+                  <Ionicons name="gift" size={20} color="rgba(255, 255, 255, 0.6)" />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  placeholder="Referral Code (Optional)"
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  autoCapitalize="characters"
+                />
               </View>
-              <Text style={styles.termsText}>
-                I agree to the Terms & Conditions and Privacy Policy
-              </Text>
-            </TouchableOpacity>
+            </LinearGradient>
 
+            {/* Signup Button */}
             <TouchableOpacity
-              style={[styles.signupButton, isLoading && styles.disabledButton]}
+              style={[styles.signupButton, isLoading && styles.signupButtonDisabled]}
               onPress={handleSignUp}
               disabled={isLoading}
             >
-              <Text style={styles.signupButtonText}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Text>
+              <LinearGradient
+                colors={['#00DEFF', '#0043F7', '#0E1D92', '#001C89', '#B22CFF']}
+                locations={[0.0185, 0.3205, 0.5181, 0.6465, 0.9599]}
+                style={styles.signupButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.signupButtonText}>
+                  {isLoading ? 'Creating Account...' : 'Signup'}
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
 
-
+            {/* Login Link */}
             <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={styles.loginText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => router.push('/email-login')}>
-                <Text style={styles.loginLink}>Sign In</Text>
+                <Text style={styles.loginLink}>Login</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -246,31 +304,44 @@ export default function EmailSignupScreen() {
         icon="checkmark-circle"
         color="#00CAFE"
       />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#03021F',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   header: {
-    marginTop: 60,
-    marginBottom: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
+    padding: 8,
+  },
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 250,
+    height: 250,
+  },
+  titleSection: {
     alignItems: 'center',
     marginBottom: 20,
   },
@@ -278,123 +349,79 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#CCCCCC',
+    textAlign: 'center',
   },
   form: {
-    flex: 1,
+    paddingHorizontal: 30,
   },
-  nameContainer: {
+  nameRow: {
     flexDirection: 'row',
     marginBottom: 20,
+    gap: 12,
   },
-  inputContainer: {
-    marginBottom: 20,
+  nameField: {
+    flex: 1,
   },
-  label: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 8,
-    fontWeight: '500',
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: 0,
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    zIndex: 1,
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 8.538,
+    padding: 16,
+    paddingLeft: 50,
     fontSize: 16,
     color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 0,
+    minHeight: 56,
   },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  eyeButton: {
-    paddingHorizontal: 16,
-  },
-  termsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#00CAFE',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  termsText: {
-    flex: 1,
-    color: '#CCCCCC',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  signupButton: {
-    backgroundColor: '#00CAFE',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
+  gradientBorder: {
+    borderRadius: 8.538,
+    padding: 1.5,
     marginBottom: 20,
   },
-  disabledButton: {
-    opacity: 0.6,
+  inputContainer: {
+    position: 'relative',
+    backgroundColor: '#03021F',
+    borderRadius: 7.038, // Slightly smaller to show the gradient border
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 1,
+    padding: 4,
+  },
+  signupButton: {
+    borderRadius: 30,
+    marginTop: 20,
+    marginBottom: 30,
+    shadowColor: '#00CAFE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  signupButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    alignItems: 'center',
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dividerText: {
-    color: '#CCCCCC',
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  spotifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 30,
-  },
-  spotifyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 8,
+  signupButtonDisabled: {
+    opacity: 0.6,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -402,12 +429,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginText: {
-    color: '#CCCCCC',
-    fontSize: 14,
+    fontSize: 16,
+    color: '#FFFFFF',
   },
   loginLink: {
+    fontSize: 16,
     color: '#00CAFE',
-    fontSize: 14,
-    fontWeight: '500',
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
