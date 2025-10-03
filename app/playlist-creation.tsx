@@ -25,7 +25,6 @@ export default function PlaylistCreationScreen() {
       if (genre) setUserGenre(genre);
       if (tempo) setUserTempo(tempo);
     } catch (error) {
-      console.error('Error loading preferences:', error);
     }
   };
 
@@ -43,7 +42,6 @@ export default function PlaylistCreationScreen() {
       // Navigate to folder creation
       router.push('/folder-creation');
     } catch (error) {
-      console.error('Error creating playlist:', error);
       Alert.alert('Error', 'Failed to create playlist. Please try again.');
     }
   };
@@ -53,7 +51,6 @@ export default function PlaylistCreationScreen() {
       await AsyncStorage.setItem('firstPlaylistCreated', 'true');
       router.push('/folder-creation');
     } catch (error) {
-      console.error('Error skipping:', error);
     }
   };
 
@@ -128,7 +125,7 @@ export default function PlaylistCreationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   header: {
     flexDirection: 'row',

@@ -24,18 +24,17 @@ export default function TabLayout() {
         setProfileImage(image);
       }
     } catch (error) {
-      console.error('Error loading profile image:', error);
     }
   };
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FFFFFF',
+        tabBarActiveTintColor: '#00DEFF',
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#000000',
+          backgroundColor: '#03021F',
           borderTopWidth: 0,
           paddingTop: 8,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,
@@ -99,7 +98,7 @@ export default function TabLayout() {
                   height: 24,
                   borderRadius: 12,
                   borderWidth: focused ? 2 : 1,
-                  borderColor: focused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)',
+                  borderColor: focused ? '#00DEFF' : 'rgba(255, 255, 255, 0.3)',
                 }}
                 resizeMode="cover"
               />

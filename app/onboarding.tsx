@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { BackgroundDecorations, ThemedText } from '../src/components';
-
+import {  ThemedText } from '../src/components';
 const { width, height } = Dimensions.get('window');
 
 const onboardingData = [
@@ -19,7 +18,7 @@ const onboardingData = [
   },
   {
     id: 2,
-    image: require('../assets/images/welcome/image2.png'),
+    image: require('../assets/images/welcome/image2new.png'),
     title: 'Customization',
     subtitle: 'Pick your vibe, your genre, your tempo',
     description: 'MoodyAi makes it all yours.',
@@ -43,7 +42,7 @@ const onboardingData = [
   },
   {
     id: 5,
-    image: require('../assets/images/welcome/img1.png'), // Using img1 as placeholder for now
+    image: require('../assets/images/welcome/Vector.png'), // Using img1 as placeholder for now
     title: 'Welcome to MoodyAi',
     subtitle: 'Ready to create? Let\'s get started with MoodyAi!',
     description: '',
@@ -51,17 +50,17 @@ const onboardingData = [
   }
 ];
 
-export default function OnboardingScreen() {
+const OnboardingScreen = memo(() => {
   const [currentStep, setCurrentStep] = useState(0);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentStep < onboardingData.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
       // Complete onboarding
       completeOnboarding();
     }
-  };
+  }, [currentStep]);
 
   const handleSkip = () => {
     completeOnboarding();
@@ -78,7 +77,6 @@ export default function OnboardingScreen() {
       await AsyncStorage.setItem('onboardingCompleted', 'true');
       router.replace('/mood-creation');
     } catch (error) {
-      console.error('Error completing onboarding:', error);
       router.replace('/mood-creation');
     }
   };
@@ -87,7 +85,7 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      <BackgroundDecorations />
+      {/* <BackgroundDecorations /> */}
       
       {/* Header */}
       <View style={styles.header}>
@@ -168,11 +166,11 @@ export default function OnboardingScreen() {
         </View>
 
         {/* Navigation Hint */}
-        <View style={styles.swipeHint}>
+        {/* <View style={styles.swipeHint}>
           <ThemedText style={styles.swipeHintText}>
             {currentStep > 0 ? '← Tap left or right half →' : 'Tap right half →'}
           </ThemedText>
-        </View>
+        </View> */}
       </View>
 
       {/* Next Button */}
@@ -185,12 +183,12 @@ export default function OnboardingScreen() {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   header: {
     flexDirection: 'row',
@@ -218,6 +216,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   contentArea: {
     flex: 1,
@@ -261,7 +260,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: width * 0.8,
     height: height * 0.4,
-    marginBottom: 40,
+    marginBottom: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -270,28 +269,31 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   textContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 40,
+    marginTop: 20,
+    paddingHorizontal: 10,
   },
   title: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 16,
+    textAlign: 'left',
+    marginBottom: 40,
     letterSpacing: 0.5,
+    lineHeight: 48,
   },
   subtitle: {
     fontSize: 18,
     color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 12,
     lineHeight: 26,
   },
   description: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 24,
   },
   progressContainer: {
@@ -323,6 +325,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00CAFE',
     borderRadius: 16,
     padding: 20,
+    marginBottom: 50,
     alignItems: 'center',
     shadowColor: '#00CAFE',
     shadowOffset: { width: 0, height: 6 },
@@ -346,3 +349,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+export default OnboardingScreen;

@@ -48,15 +48,12 @@ export default function PaywallScreen() {
 
   const handleLogout = async () => {
     try {
-      console.log('🚀 Logging out from paywall...');
       await AuthService.signOut();
-      console.log('✅ Logout successful');
       // Clear all local storage
       await AsyncStorage.clear();
       // Redirect to login
       router.replace('/email-login');
     } catch (error: any) {
-      console.error('❌ Logout error:', error);
       Alert.alert('Logout Failed', error.message);
     }
   };
@@ -67,19 +64,11 @@ export default function PaywallScreen() {
       return;
     }
 
-    console.log('🚀 Starting subscription process...', { 
-      userId: user.uid, 
-      showFreeTrial, 
-      selectedPlan 
-    });
-
     setIsLoading(true);
     try {
       if (showFreeTrial) {
         // Start free trial
-        console.log('🚀 Starting free trial...');
         const result = await SubscriptionService.startFreeTrial(user.uid, selectedPlan);
-        console.log('✅ Free trial started successfully:', result);
         
         // Store subscription status in AsyncStorage for quick access
         await AsyncStorage.setItem('subscriptionStatus', 'trial');
@@ -112,7 +101,6 @@ export default function PaywallScreen() {
         setShowSuccessModal(true);
       }
     } catch (error: any) {
-      console.error('❌ Subscription error:', error);
       Alert.alert('Error', `Failed to start subscription: ${error.message}`);
     } finally {
       setIsLoading(false);

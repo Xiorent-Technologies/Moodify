@@ -8,6 +8,7 @@ export { default as ParallaxScrollView } from './ParallaxScrollView';
 export { SplashScreen } from './SplashScreen';
 export { ThemedText } from './ThemedText';
 export { ThemedView } from './ThemedView';
+export { default as GradientNeedle } from './GradientNeedle';
 
 // UI Icon Components
 export { IconSymbol } from './ui/IconSymbol';

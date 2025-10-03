@@ -269,4 +269,9 @@ export class AuthService {
       throw error;
     }
   }
+
+  // Get current user
+  static getCurrentUser() {
+    return auth.currentUser;
+  }
 }

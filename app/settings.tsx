@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
     Alert,
     ScrollView,
@@ -9,14 +9,42 @@ import {
     Switch,
     Text,
     TouchableOpacity,
-    View
+    View,
+    Clipboard
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SpotifyAuthService } from '../src/services/spotifyAuth';
 import { AuthService } from '../src/services/authService';
+import { auth } from '../src/config/firebase';
 
-export default function SettingsScreen() {
+const SettingsScreen = memo(() => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [lightModeEnabled, setLightModeEnabled] = useState(true);
+  const [referralCode, setReferralCode] = useState('');
+  const [isLoadingReferral, setIsLoadingReferral] = useState(true);
+
+  useEffect(() => {
+    loadReferralCode();
+  }, []);
+
+  const loadReferralCode = async () => {
+    try {
+      if (auth.currentUser) {
+        let code = await AuthService.getUserReferralCode(auth.currentUser.uid);
+        
+        // If no referral code exists, generate one
+        if (!code) {
+          code = await AuthService.generateReferralCode(auth.currentUser.uid);
+        }
+        
+        setReferralCode(code || '');
+      }
+    } catch (error) {
+      // Silent error handling
+    } finally {
+      setIsLoadingReferral(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -32,26 +60,20 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🚀 Starting complete logout...');
               
               // 1. Logout from Firebase Auth
               await AuthService.signOut();
-              console.log('✅ Firebase logout successful');
               
               // 2. Logout from Spotify
               await SpotifyAuthService.logout();
-              console.log('✅ Spotify logout successful');
               
               // 3. Clear ALL AsyncStorage data
               await AsyncStorage.clear();
-              console.log('✅ All local data cleared');
               
               // 4. Navigate to email login screen
               router.replace('/email-login');
-              console.log('✅ Redirected to login screen');
               
             } catch (error) {
-              console.error('❌ Error during logout:', error);
               Alert.alert('Error', 'Failed to logout completely. Please try again.');
             }
           },
@@ -62,37 +84,46 @@ export default function SettingsScreen() {
 
   const handleAccountPress = () => {
     // Navigate to account settings
-    console.log('Account pressed');
   };
 
   const handleSubscriptionPress = () => {
-    // Navigate to subscription settings
-    console.log('Subscription pressed');
+    // Navigate to subscription screen
+    router.push('/subscription');
   };
 
   const handleSecurityPress = () => {
     // Navigate to security settings
-    console.log('Security pressed');
   };
 
   const handleTermsPress = () => {
     // Navigate to terms and conditions
-    console.log('Terms & Conditions pressed');
   };
 
   const handlePrivacyPress = () => {
     // Navigate to privacy policy
-    console.log('Privacy Policy pressed');
   };
 
   const handleHelpPress = () => {
     // Navigate to help
-    console.log('Help pressed');
   };
 
   const handleInviteFriendPress = () => {
     // Navigate to refer and earn screen
     router.push('/refer-earn');
+  };
+
+  const handleCopyReferralCode = async () => {
+    if (!referralCode) {
+      Alert.alert('Error', 'No referral code available');
+      return;
+    }
+    
+    try {
+      await Clipboard.setString(referralCode);
+      Alert.alert('Copied!', 'Referral code copied to clipboard');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy referral code');
+    }
   };
 
   const renderSettingItem = (
@@ -131,26 +162,50 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background Decorations */}
-      <View style={styles.backgroundDecorations}>
-        <View style={[styles.orb, styles.orb1]} />
-        <View style={[styles.orb, styles.orb2]} />
-        <View style={[styles.orb, styles.orb3]} />
-        <View style={[styles.orb, styles.orb4]} />
-      </View>
-
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Refer & Earn Banner */}
+        <View style={styles.referBanner}>
+          <Image
+            source={require('../assets/images/profile/refer.png')}
+            style={styles.referImage}
+            contentFit="cover"
+          />
+          <View style={styles.referOverlay}>
+            <View style={styles.textContainer}>
+              <Text style={styles.referTitle}>REFER & EARN</Text>
+              <TouchableOpacity 
+                style={[
+                  styles.referralCodeContainer,
+                  (isLoadingReferral || !referralCode) && styles.referralCodeContainerDisabled
+                ]} 
+                onPress={handleCopyReferralCode}
+                disabled={isLoadingReferral || !referralCode}
+              >
+                <Text style={styles.referralCode}>
+                  {isLoadingReferral ? 'Loading...' : referralCode || 'No code available'}
+                </Text>
+                <Text style={styles.tapToCopy}>
+                  {isLoadingReferral ? 'Please wait' : 'Tap to Copy'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.referDescription}>Refer to your friends and get exciting rewards on your next purchase</Text>
+            </View>
+          </View>
+        </View>
+
         {/* Account & Preferences Section */}
         <View style={styles.section}>
           {renderSettingItem('person-outline', 'Account', handleAccountPress)}
+          <View style={styles.separator} />
           {renderSettingItem(
             'notifications-outline', 
             'Notifications', 
@@ -158,9 +213,9 @@ export default function SettingsScreen() {
             false, 
             true, 
             notificationsEnabled, 
-            setNotificationsEnabled,
-            true
+            setNotificationsEnabled
           )}
+          <View style={styles.separator} />
           {renderSettingItem(
             'sunny-outline', 
             'Light Mode', 
@@ -170,76 +225,43 @@ export default function SettingsScreen() {
             lightModeEnabled, 
             setLightModeEnabled
           )}
+          <View style={styles.separator} />
           {renderSettingItem('globe-outline', 'Subscription', handleSubscriptionPress)}
         </View>
 
         {/* Legal & Support Section */}
         <View style={styles.section}>
           {renderSettingItem('shield-checkmark-outline', 'Security', handleSecurityPress)}
+          <View style={styles.separator} />
           {renderSettingItem('document-text-outline', 'Terms & Conditions', handleTermsPress)}
+          <View style={styles.separator} />
           {renderSettingItem('lock-closed-outline', 'Privacy Policy', handlePrivacyPress)}
+          <View style={styles.separator} />
           {renderSettingItem('information-circle-outline', 'Help', handleHelpPress)}
         </View>
 
-        {/* Social & Logout Section */}
+        {/* Actions Section */}
         <View style={styles.section}>
-          {renderSettingItem('gift-outline', 'Refer & Earn', handleInviteFriendPress)}
+          {renderSettingItem('people-outline', 'Invite a friend', handleInviteFriendPress)}
+          <View style={styles.separator} />
           {renderSettingItem('log-out-outline', 'Logout', handleLogout, false)}
         </View>
       </ScrollView>
     </View>
   );
-}
+});
+
+export default SettingsScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  backgroundDecorations: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  orb: {
-    position: 'absolute',
-    borderRadius: 100,
-    backgroundColor: 'rgba(138, 43, 226, 0.3)',
-    shadowColor: '#8A2BE2',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  orb1: {
-    width: 120,
-    height: 120,
-    top: 100,
-    left: -30,
-  },
-  orb2: {
-    width: 80,
-    height: 80,
-    top: 200,
-    right: -20,
-  },
-  orb3: {
-    width: 100,
-    height: 100,
-    bottom: 300,
-    left: -40,
-  },
-  orb4: {
-    width: 60,
-    height: 60,
-    bottom: 200,
-    right: -10,
+    backgroundColor: '#03021F',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
@@ -251,16 +273,94 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginLeft: 16,
+  },
+  headerSpacer: {
+    width: 40,
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
   },
-  section: {
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
+  // Refer & Earn Banner
+  referBanner: {
+    height: 320,
     borderRadius: 16,
-    marginBottom: 20,
+    marginBottom: 24,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  referImage: {
+    width: '100%',
+    height: '100%',
+  },
+  referOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
+  textContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    borderRadius: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backdropFilter: 'blur(300px)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    marginTop: 'auto',
+  },
+  referTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'left',
+    fontStyle: 'italic',
+  },
+  referralCodeContainer: {
+    borderWidth: 2,
+    borderColor: '#FFA500',
+    borderStyle: 'dashed',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  referralCodeContainerDisabled: {
+    opacity: 0.5,
+  },
+  referralCode: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00BFFF',
+    textAlign: 'left',
+  },
+  tapToCopy: {
+    fontSize: 12,
+    color: '#CCCCCC',
+    fontStyle: 'italic',
+  },
+  referDescription: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    textAlign: 'left',
+    opacity: 0.9,
+    lineHeight: 20,
+    alignSelf: 'flex-start',
+  },
+  // Settings Sections
+  section: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    marginBottom: 16,
     overflow: 'hidden',
   },
   settingItem: {
@@ -269,8 +369,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   settingLeft: {
     flexDirection: 'row',
@@ -280,6 +378,10 @@ const styles = StyleSheet.create({
   iconContainer: {
     position: 'relative',
     marginRight: 16,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notificationDot: {
     position: 'absolute',
@@ -298,5 +400,11 @@ const styles = StyleSheet.create({
   settingRight: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#fff',
+    marginLeft: 20,
+    marginRight: 20,
   },
 });

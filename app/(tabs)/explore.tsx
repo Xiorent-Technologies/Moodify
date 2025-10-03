@@ -164,7 +164,6 @@ export default function ExploreScreen() {
 
       setSearchResults(results);
     } catch (error) {
-      console.error('Error performing live search:', error);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
@@ -172,7 +171,6 @@ export default function ExploreScreen() {
   };
 
   const handleMoodPlaylistPress = (mood: any) => {
-    console.log('Mood playlist pressed:', mood.name);
     
     if (mood.isCreatePlaylist) {
       // Navigate to mood creation screen
@@ -192,7 +190,6 @@ export default function ExploreScreen() {
   };
 
   const handleBrowseCategoryPress = (category: any) => {
-    console.log('Browse category pressed:', category.name);
     // Navigate to songs list with category type
     router.push({
       pathname: '/songs-list',
@@ -255,7 +252,6 @@ export default function ExploreScreen() {
         }} 
         style={styles.searchResultImage}
         resizeMode="cover"
-        onError={() => console.log('Failed to load search result image:', item.name)}
       />
       <View style={styles.searchResultInfo}>
         <Text style={styles.searchResultName} numberOfLines={1}>
@@ -280,15 +276,19 @@ export default function ExploreScreen() {
       {/* Header and Search */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="musical-notes" size={24} color="#00CAFE" />
+          <Image 
+            source={require('../../assets/images/search/music logo.png')} 
+            style={styles.musicLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.headerTitle}>Search</Text>
         </View>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Songs, Artists, Podcasts & More"
-            placeholderTextColor="#999"
+            placeholderTextColor="#666"
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleSearchSubmit}
@@ -308,7 +308,7 @@ export default function ExploreScreen() {
                 setSearchResults([]);
               }}
             >
-              <Ionicons name="close-circle" size={20} color="#999" />
+              <Ionicons name="close-circle" size={20} color="#666" />
             </TouchableOpacity>
           )}
         </View>
@@ -319,7 +319,7 @@ export default function ExploreScreen() {
         <View style={styles.searchSuggestions}>
           <View style={styles.searchSuggestionsHeader}>
             <Text style={styles.searchSuggestionsTitle}>Search Results</Text>
-            {isLoading && <ActivityIndicator size="small" color="#00CAFE" />}
+            {isLoading && <ActivityIndicator size="small" color="#00C2CB" />}
           </View>
           
           {searchResults.length > 0 ? (
@@ -400,10 +400,7 @@ export default function ExploreScreen() {
                     style={styles.browseImage}
                     resizeMode="cover"
                     onError={() => {
-                      console.log('Failed to load browse image:', category.name);
-                      console.log('Image URL:', category.image);
                     }}
-                    onLoad={() => console.log('Successfully loaded browse image:', category.name)}
                   />
                   <View style={styles.browseOverlay}>
                     <Text style={styles.browseName}>{category.name}</Text>
@@ -426,7 +423,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
     paddingTop: 50,
     paddingBottom: 10,
   },
@@ -455,8 +452,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  musicLogo: {
+    width:50,
+    height: 50,
+    backgroundColor: 'transparent',
+  },
   headerTitle: {
-    color: '#00CAFE',
+    color: '#00C2CB',
     fontSize: 28,
     fontWeight: '700',
     marginLeft: 12,
@@ -467,23 +469,25 @@ const styles = StyleSheet.create({
   searchIcon: {
     position: 'absolute',
     left: 16,
-    top: 12,
+    top: '50%',
+    marginTop: -10,
     zIndex: 1,
   },
   searchInput: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#FFFFFF',
     borderRadius: 25,
     paddingHorizontal: 50,
     paddingVertical: 16,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#000000',
     borderWidth: 1,
-    borderColor: '#2A2A3E',
+    borderColor: '#E0E0E0',
   },
   clearButton: {
     position: 'absolute',
     right: 16,
-    top: 12,
+    top: '50%',
+    marginTop: -10,
     zIndex: 1,
   },
   content: {
@@ -595,7 +599,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#00CAFE',
+    backgroundColor: '#00C2CB',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,

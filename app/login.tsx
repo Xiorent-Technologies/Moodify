@@ -17,18 +17,14 @@ export default function LoginScreen() {
 
   const handleSpotifyLogin = async () => {
     try {
-      console.log('Starting Spotify login...');
       setIsSpotifyLoading(true);
       setSpotifyLoadingText('Opening Spotify...');
       
       // Authenticate with Spotify
-      console.log('Calling SpotifyAuthService.authenticate()...');
       setSpotifyLoadingText('Authenticating with Spotify...');
       await SpotifyAuthService.authenticate();
-      console.log('Authentication completed successfully');
       
       // Get user profile from Spotify
-      console.log('Getting user profile...');
       setSpotifyLoadingText('Getting your profile...');
       const userProfile = await SpotifyAuthService.getUserProfile();
       
@@ -44,30 +40,24 @@ export default function LoginScreen() {
       // Store Spotify email in Firebase if user is logged in
       if (auth.currentUser) {
         try {
-          console.log('Storing Spotify email in Firebase...');
           await AuthService.updateSpotifyConnection(auth.currentUser.uid, {
             email: userProfile.email,
             displayName: userProfile.display_name,
             id: userProfile.id
           });
-          console.log('Spotify email stored successfully');
         } catch (error) {
-          console.log('Error storing Spotify email:', error);
           // Don't fail the login if Firebase update fails
         }
       }
       
-      console.log('Spotify login successful for:', userProfile.display_name);
       
       // Navigate to onboarding for first-time Spotify users
-      console.log('Navigating to onboarding...');
       
       // Add a small delay to ensure all AsyncStorage operations are complete
       setTimeout(() => {
         router.replace('/onboarding');
       }, 100);
     } catch (error) {
-      console.error('Spotify login failed:', error);
       Alert.alert('Error', `Spotify login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSpotifyLoading(false);
@@ -144,7 +134,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
 
   logoSection: {
@@ -154,10 +144,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   logoContainer: {
-    width: 250,
-    height: 250,
+    width: 300,
+    height: 300,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 100,
   },
   logo: {
     width: '100%',

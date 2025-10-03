@@ -41,7 +41,6 @@ export default function SignupScreen() {
       Alert.alert('Success', 'Account created successfully!');
       router.replace('/onboarding');
     } catch (error) {
-      console.error('Signup error:', error);
       Alert.alert('Error', 'Signup failed. Please try again.');
     }
   };
@@ -186,7 +185,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   contentContainer: {
     flexGrow: 1,

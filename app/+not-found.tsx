@@ -32,7 +32,6 @@ export default function NotFoundScreen() {
         router.replace('/login');
       }
     } catch (error) {
-      console.error('Error checking auth status:', error);
       router.replace('/login');
     } finally {
       setIsChecking(false);

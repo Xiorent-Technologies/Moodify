@@ -16,6 +16,6 @@ export default function TabBarBackground({ children }: TabBarBackgroundProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
 });

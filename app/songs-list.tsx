@@ -37,7 +37,23 @@ export default function SongsListScreen() {
   const [playlistTitle, setPlaylistTitle] = useState<string>('');
   const [playlistDescription, setPlaylistDescription] = useState<string>('');
 
-  const { type, name, description, image, query } = params;
+  const { 
+    type, 
+    name, 
+    description, 
+    image, 
+    query,
+    playlistId,
+    playlistName,
+    playlistImage,
+    trackCount,
+    albumId,
+    albumName,
+    albumImage,
+    artistId,
+    artistName,
+    artistImage
+  } = params;
 
   useEffect(() => {
     loadSongs();
@@ -68,6 +84,21 @@ export default function SongsListScreen() {
         
         // Clear the mood playlist data after loading
         await AsyncStorage.removeItem('moodPlaylist');
+      } else if (playlistId) {
+        // Load playlist tracks from Spotify
+        songsData = await loadPlaylistTracks(playlistId as string);
+        setPlaylistTitle(playlistName as string || 'Playlist');
+        setPlaylistDescription(`${trackCount || songsData.length} songs`);
+      } else if (albumId) {
+        // Load album tracks from Spotify
+        songsData = await loadAlbumTracks(albumId as string);
+        setPlaylistTitle(albumName as string || 'Album');
+        setPlaylistDescription(`${trackCount || songsData.length} songs`);
+      } else if (artistId) {
+        // Load artist top tracks from Spotify
+        songsData = await loadArtistTracks(artistId as string);
+        setPlaylistTitle(artistName as string || 'Artist');
+        setPlaylistDescription(`Top tracks`);
       } else if (type === 'mood') {
         // Load mood-based songs
         songsData = await loadMoodBasedSongs(name as string);
@@ -81,12 +112,77 @@ export default function SongsListScreen() {
 
       setSongs(songsData);
     } catch (error) {
-      console.error('Error loading songs:', error);
       // Fallback to sample songs
       setSongs(getSampleSongs());
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadPlaylistTracks = async (playlistId: string): Promise<Song[]> => {
+    try {
+      const response = await SpotifyApiService.getPlaylistTracks(playlistId);
+      
+      if (response && response.items) {
+        return response.items.map((item: any) => ({
+          id: item.track.id,
+          name: item.track.name,
+          artist: item.track.artists?.[0]?.name || 'Unknown Artist',
+          album: item.track.album?.name || 'Unknown Album',
+          albumArt: item.track.album?.images?.[0]?.url || '',
+          duration: formatDuration(item.track.duration_ms),
+          uri: item.track.uri
+        }));
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+    
+    return getSampleSongs();
+  };
+
+  const loadAlbumTracks = async (albumId: string): Promise<Song[]> => {
+    try {
+      const response = await SpotifyApiService.getAlbumTracks(albumId);
+      
+      if (response && response.items) {
+        return response.items.map((track: any) => ({
+          id: track.id,
+          name: track.name,
+          artist: track.artists?.[0]?.name || 'Unknown Artist',
+          album: track.album?.name || 'Unknown Album',
+          albumArt: track.album?.images?.[0]?.url || '',
+          duration: formatDuration(track.duration_ms),
+          uri: track.uri
+        }));
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+    
+    return getSampleSongs();
+  };
+
+  const loadArtistTracks = async (artistId: string): Promise<Song[]> => {
+    try {
+      const response = await SpotifyApiService.getArtistTopTracks(artistId);
+      
+      if (response && response.tracks) {
+        return response.tracks.map((track: any) => ({
+          id: track.id,
+          name: track.name,
+          artist: track.artists?.[0]?.name || 'Unknown Artist',
+          album: track.album?.name || 'Unknown Album',
+          albumArt: track.album?.images?.[0]?.url || '',
+          duration: formatDuration(track.duration_ms),
+          uri: track.uri
+        }));
+      }
+    } catch (error) {
+      // Silent error handling
+    }
+    
+    return getSampleSongs();
   };
 
   const loadSearchResults = async (searchQuery: string): Promise<Song[]> => {
@@ -106,7 +202,6 @@ export default function SongsListScreen() {
         }));
       }
     } catch (error) {
-      console.error('Error loading search results:', error);
     }
     
     return getSampleSongs();
@@ -164,7 +259,6 @@ export default function SongsListScreen() {
         }));
       }
     } catch (error) {
-      console.error('Error loading mood songs:', error);
     }
     
     return getSampleSongs();
@@ -229,7 +323,6 @@ export default function SongsListScreen() {
         }));
       }
     } catch (error) {
-      console.error('Error loading category songs:', error);
     }
     
     return getSampleSongs();
@@ -303,7 +396,6 @@ export default function SongsListScreen() {
         [{ text: 'Awesome!', style: 'default' }]
       );
     } catch (error) {
-      console.error('Error opening song:', error);
       Alert.alert('Error', 'Failed to open song in Spotify');
     }
   };
@@ -319,7 +411,6 @@ export default function SongsListScreen() {
       
       // TODO: Implement playlist creation and playback
     } catch (error) {
-      console.error('Error playing all songs:', error);
     }
   };
 
@@ -386,7 +477,6 @@ export default function SongsListScreen() {
 
       return { userLanguage, userRegion, userGenres };
     } catch (error) {
-      console.error('Error analyzing user preferences:', error);
       return { userLanguage: 'english', userRegion: 'global', userGenres: [] };
     }
   };
@@ -415,7 +505,6 @@ export default function SongsListScreen() {
             }} 
             style={styles.headerImage}
             resizeMode="cover"
-            onError={() => console.log('Failed to load header image')}
           />
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>{playlistTitle || name}</Text>
@@ -457,7 +546,6 @@ export default function SongsListScreen() {
                 }} 
                 style={styles.songArt}
                 resizeMode="cover"
-                onError={() => console.log('Failed to load song art:', song.name)}
               />
               <View style={styles.songDetails}>
                 <Text style={styles.songName} numberOfLines={1}>
@@ -485,11 +573,11 @@ export default function SongsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#070031',
+    backgroundColor: '#03021F',
     justifyContent: 'center',
     alignItems: 'center',
   },
